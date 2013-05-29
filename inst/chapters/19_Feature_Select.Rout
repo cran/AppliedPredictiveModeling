@@ -1,0 +1,1931 @@
+
+R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+Copyright (C) 2013 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################################################
+> ### R code from Applied Predictive Modeling (2013) by Kuhn and Johnson.
+> ### Copyright 2013 Kuhn and Johnson
+> ### Web Page: http://www.appliedpredictivemodeling.com
+> ### Contact: Max Kuhn (mxkuhn@gmail.com) 
+> ###
+> ### Chapter 19: An Introduction to Feature Selection
+> ###
+> ### Required packages: AppliedPredictiveModeling, caret, MASS, corrplot,
+> ###                    RColorBrewer, randomForest, kernlab, klaR,
+> ###                   
+> ###
+> ### Data used: The Alzheimer disease data from the AppliedPredictiveModeling 
+> ###            package
+> ###
+> ### Notes: 
+> ### 1) This code is provided without warranty.
+> ###
+> ### 2) This code should help the user reproduce the results in the
+> ### text. There will be differences between this code and what is is
+> ### the computing section. For example, the computing sections show
+> ### how the source functions work (e.g. randomForest() or plsr()),
+> ### which were not directly used when creating the book. Also, there may be 
+> ### syntax differences that occur over time as packages evolve. These files 
+> ### will reflect those changes.
+> ###
+> ### 3) In some cases, the calculations in the book were run in 
+> ### parallel. The sub-processes may reset the random number seed.
+> ### Your results may slightly vary.
+> ###
+> ################################################################################
+> 
+> 
+> 
+> ################################################################################
+> ### Section 19.6 Case Study: Predicting Cognitive Impairment
+> 
+> 
+> library(AppliedPredictiveModeling)
+Loading required package: CORElearn
+Loading required package: cluster
+Loading required package: rpart
+Loading required package: MASS
+Loading required package: plyr
+Loading required package: reshape2
+> data(AlzheimerDisease)
+> 
+> ## The baseline set of predictors
+> bl <- c("Genotype", "age", "tau", "p_tau", "Ab_42", "male")
+> 
+> ## The set of new assays
+> newAssays <- colnames(predictors)
+> newAssays <- newAssays[!(newAssays %in% c("Class", bl))]
+> 
+> ## Decompose the genotype factor into binary dummy variables
+> 
+> predictors$E2 <- predictors$E3 <- predictors$E4 <- 0
+> predictors$E2[grepl("2", predictors$Genotype)] <- 1
+> predictors$E3[grepl("3", predictors$Genotype)] <- 1
+> predictors$E4[grepl("4", predictors$Genotype)] <- 1
+> genotype <-  predictors$Genotype
+> 
+> ## Partition the data
+> library(caret)
+Loading required package: foreach
+Loading required package: lattice
+> set.seed(730)
+> split <- createDataPartition(diagnosis, p = .8, list = FALSE)
+> 
+> adData <- predictors
+> adData$Class <- diagnosis
+> 
+> training <- adData[ split, ]
+> testing  <- adData[-split, ]
+> 
+> predVars <- names(adData)[!(names(adData) %in% c("Class",  "Genotype"))]
+> 
+> ## This summary function is used to evaluate the models.
+> fiveStats <- function(...) c(twoClassSummary(...), defaultSummary(...))
+> 
+> ## We create the cross-validation files as a list to use with different 
+> ## functions
+> 
+> set.seed(104)
+> index <- createMultiFolds(training$Class, times = 5)
+> 
+> ## The candidate set of the number of predictors to evaluate
+> varSeq <- seq(1, length(predVars)-1, by = 2)
+> 
+> ## We can also use parallel processing to run each resampled RFE
+> ## iteration (or resampled model with train()) using different
+> ## workers.
+> 
+> library(doMC)
+Loading required package: iterators
+Loading required package: parallel
+> registerDoMC(15)
+> 
+> 
+> ## The rfe() function in the caret package is used for recursive feature 
+> ## elimiation. We setup control functions for this and train() that use
+> ## the same cross-validation folds. The 'ctrl' object will be modifed several
+> ## times as we try different models
+> 
+> ctrl <- rfeControl(method = "repeatedcv", repeats = 5,
++                    saveDetails = TRUE,
++                    index = index)
+> 
+> fullCtrl <- trainControl(method = "repeatedcv",
++                          repeats = 5,
++                          summaryFunction = fiveStats,
++                          classProbs = TRUE,
++                          index = index)
+> 
+> ## The correlation matrix of the new data
+> predCor <- cor(training[, newAssays])
+> 
+> library(RColorBrewer)
+> cols <- c(rev(brewer.pal(7, "Blues")),
++           brewer.pal(7, "Reds"))
+> library(corrplot)
+> corrplot(predCor,
++          order = "hclust",
++          tl.pos = "n",addgrid.col = rgb(1,1,1,.01),
++          col = colorRampPalette(cols)(51))
+> 
+> ## Fit a series of models with the full set of predictors
+> set.seed(721)
+> rfFull <- train(training[, predVars],
++                 training$Class,
++                 method = "rf",
++                 metric = "ROC",
++                 tuneGrid = data.frame(.mtry = floor(sqrt(length(predVars)))),
++                 ntree = 1000,
++                 trControl = fullCtrl)
+Loading required package: pROC
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following object is masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Loading required package: class
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+> rfFull
+267 samples
+132 predictors
+  2 classes: 'Impaired', 'Control' 
+
+No pre-processing
+Resampling: Cross-Validation (10 fold, repeated 5 times) 
+
+Summary of sample sizes: 241, 241, 241, 240, 240, 240, ... 
+
+Resampling results
+
+  ROC   Sens   Spec   Accuracy  Kappa  ROC SD  Sens SD  Spec SD  Accuracy SD
+  0.89  0.438  0.984  0.834     0.494  0.0723  0.157    0.0261   0.0439     
+  Kappa SD
+  0.162   
+
+Tuning parameter 'mtry' was held constant at a value of 11
+ 
+> 
+> set.seed(721)
+> ldaFull <- train(training[, predVars],
++                  training$Class,
++                  method = "lda",
++                  metric = "ROC",
++                  ## The 'tol' argument helps lda() know when a matrix is 
++                  ## singular. One of the predictors has values very close to 
++                  ## zero, so we raise the vaue to be smaller than the default
++                  ## value of 1.0e-4.
++                  tol = 1.0e-12,
++                  trControl = fullCtrl)
+> ldaFull
+267 samples
+132 predictors
+  2 classes: 'Impaired', 'Control' 
+
+No pre-processing
+Resampling: Cross-Validation (10 fold, repeated 5 times) 
+
+Summary of sample sizes: 241, 241, 241, 240, 240, 240, ... 
+
+Resampling results
+
+  ROC    Sens   Spec   Accuracy  Kappa  ROC SD  Sens SD  Spec SD  Accuracy SD
+  0.844  0.686  0.829  0.79      0.491  0.0859  0.18     0.0819   0.0659     
+  Kappa SD
+  0.161   
+
+ 
+> 
+> set.seed(721)
+> svmFull <- train(training[, predVars],
++                  training$Class,
++                  method = "svmRadial",
++                  metric = "ROC",
++                  tuneLength = 12,
++                  preProc = c("center", "scale"),
++                  trControl = fullCtrl)
+> svmFull
+267 samples
+132 predictors
+  2 classes: 'Impaired', 'Control' 
+
+Pre-processing: centered, scaled 
+Resampling: Cross-Validation (10 fold, repeated 5 times) 
+
+Summary of sample sizes: 241, 241, 241, 240, 240, 240, ... 
+
+Resampling results across tuning parameters:
+
+  C     ROC    Sens   Spec   Accuracy  Kappa  ROC SD  Sens SD  Spec SD
+  0.25  0.877  0      1      0.727     0      0.0815  0        0      
+  0.5   0.877  0.103  0.994  0.75      0.129  0.0813  0.0983   0.0223 
+  1     0.884  0.555  0.966  0.853     0.579  0.0806  0.17     0.0447 
+  2     0.889  0.645  0.951  0.867     0.635  0.0778  0.169    0.0497 
+  4     0.885  0.652  0.935  0.858     0.618  0.0781  0.16     0.0545 
+  8     0.884  0.638  0.932  0.852     0.601  0.0777  0.156    0.0552 
+  16    0.884  0.638  0.932  0.852     0.601  0.0777  0.156    0.0552 
+  32    0.884  0.638  0.932  0.852     0.601  0.0777  0.156    0.0552 
+  64    0.884  0.638  0.932  0.852     0.601  0.0777  0.156    0.0552 
+  128   0.884  0.638  0.932  0.852     0.601  0.0777  0.156    0.0552 
+  256   0.884  0.638  0.932  0.852     0.601  0.0777  0.156    0.0552 
+  512   0.884  0.638  0.932  0.852     0.601  0.0777  0.156    0.0552 
+  Accuracy SD  Kappa SD
+  0.0134       0       
+  0.0329       0.126   
+  0.0551       0.17    
+  0.0582       0.165   
+  0.0592       0.163   
+  0.0541       0.151   
+  0.0541       0.151   
+  0.0541       0.151   
+  0.0541       0.151   
+  0.0541       0.151   
+  0.0541       0.151   
+  0.0541       0.151   
+
+Tuning parameter 'sigma' was held constant at a value of 0.00662
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were C = 2 and sigma = 0.00662. 
+> 
+> set.seed(721)
+> nbFull <- train(training[, predVars],
++                 training$Class,
++                 method = "nb",
++                 metric = "ROC",
++                 trControl = fullCtrl)
+> nbFull
+267 samples
+132 predictors
+  2 classes: 'Impaired', 'Control' 
+
+No pre-processing
+Resampling: Cross-Validation (10 fold, repeated 5 times) 
+
+Summary of sample sizes: 241, 241, 241, 240, 240, 240, ... 
+
+Resampling results across tuning parameters:
+
+  usekernel  ROC    Sens   Spec   Accuracy  Kappa  ROC SD  Sens SD  Spec SD
+  FALSE      0.778  0.644  0.78   0.742     0.395  0.107   0.173    0.0931 
+  TRUE       0.798  0.594  0.814  0.753     0.397  0.0952  0.174    0.0971 
+  Accuracy SD  Kappa SD
+  0.0699       0.155   
+  0.0792       0.182   
+
+Tuning parameter 'fL' was held constant at a value of 0
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were fL = 0 and usekernel = TRUE. 
+> 
+> lrFull <- train(training[, predVars],
++                 training$Class,
++                 method = "glm",
++                 metric = "ROC",
++                 trControl = fullCtrl)
+Warning messages:
+1: glm.fit: algorithm did not converge 
+2: glm.fit: fitted probabilities numerically 0 or 1 occurred 
+> lrFull
+267 samples
+132 predictors
+  2 classes: 'Impaired', 'Control' 
+
+No pre-processing
+Resampling: Cross-Validation (10 fold, repeated 5 times) 
+
+Summary of sample sizes: 241, 241, 241, 240, 240, 240, ... 
+
+Resampling results
+
+  ROC    Sens  Spec   Accuracy  Kappa  ROC SD  Sens SD  Spec SD  Accuracy SD
+  0.785  0.67  0.778  0.748     0.417  0.101   0.165    0.11     0.0825     
+  Kappa SD
+  0.172   
+
+ 
+> 
+> set.seed(721)
+> knnFull <- train(training[, predVars],
++                  training$Class,
++                  method = "knn",
++                  metric = "ROC",
++                  tuneLength = 20,
++                  preProc = c("center", "scale"),
++                  trControl = fullCtrl)
+> knnFull
+267 samples
+132 predictors
+  2 classes: 'Impaired', 'Control' 
+
+Pre-processing: centered, scaled 
+Resampling: Cross-Validation (10 fold, repeated 5 times) 
+
+Summary of sample sizes: 241, 241, 241, 240, 240, 240, ... 
+
+Resampling results across tuning parameters:
+
+  k   ROC    Sens    Spec   Accuracy  Kappa   ROC SD  Sens SD  Spec SD
+  5   0.753  0.476   0.928  0.804     0.444   0.142   0.184    0.061  
+  7   0.76   0.455   0.939  0.807     0.444   0.136   0.157    0.0588 
+  9   0.788  0.394   0.964  0.808     0.419   0.107   0.154    0.0361 
+  11  0.794  0.372   0.973  0.809     0.411   0.114   0.152    0.0335 
+  13  0.79   0.336   0.966  0.793     0.361   0.14    0.15     0.0367 
+  15  0.817  0.328   0.967  0.792     0.353   0.0753  0.152    0.0411 
+  17  0.821  0.298   0.979  0.793     0.338   0.0736  0.157    0.0328 
+  19  0.837  0.282   0.986  0.793     0.328   0.0704  0.168    0.0253 
+  21  0.847  0.265   0.985  0.788     0.307   0.0704  0.169    0.0261 
+  23  0.846  0.246   0.984  0.781     0.289   0.0673  0.12     0.03   
+  25  0.843  0.232   0.987  0.78      0.276   0.073   0.126    0.0229 
+  27  0.846  0.21    0.989  0.775     0.255   0.0669  0.108    0.0216 
+  29  0.849  0.196   0.991  0.773     0.242   0.0687  0.103    0.0201 
+  31  0.847  0.182   0.988  0.767     0.221   0.0703  0.0962   0.0268 
+  33  0.842  0.171   0.99   0.766     0.209   0.0721  0.107    0.0208 
+  35  0.843  0.157   0.991  0.762     0.193   0.0728  0.105    0.0201 
+  37  0.842  0.138   0.991  0.757     0.169   0.0705  0.102    0.02   
+  39  0.837  0.121   0.995  0.756     0.154   0.0731  0.104    0.0158 
+  41  0.831  0.0961  0.995  0.749     0.122   0.0738  0.0932   0.0156 
+  43  0.82   0.0739  0.996  0.744     0.0939  0.107   0.0854   0.0142 
+  Accuracy SD  Kappa SD
+  0.0661       0.195   
+  0.0582       0.166   
+  0.0535       0.173   
+  0.0537       0.177   
+  0.0517       0.177   
+  0.0517       0.178   
+  0.0494       0.183   
+  0.05         0.191   
+  0.0488       0.186   
+  0.0391       0.142   
+  0.0386       0.15    
+  0.036        0.135   
+  0.0342       0.129   
+  0.0326       0.119   
+  0.0359       0.139   
+  0.0352       0.136   
+  0.0328       0.128   
+  0.0353       0.137   
+  0.0312       0.126   
+  0.0288       0.116   
+
+ROC was used to select the optimal model using  the largest value.
+The final value used for the model was k = 29. 
+> 
+> ## Now fit the RFE versions. To do this, the 'functions' argument of the rfe()
+> ## object is modified to the approproate functions. For model details about 
+> ## these functions and their arguments, see 
+> ##
+> ##   http://caret.r-forge.r-project.org/featureselection.html
+> ##
+> ## for more information.
+> 
+> 
+> 
+> 
+> ctrl$functions <- rfFuncs
+> ctrl$functions$summary <- fiveStats
+> set.seed(721)
+> rfRFE <- rfe(training[, predVars],
++              training$Class,
++              sizes = varSeq,
++              metric = "ROC",
++              ntree = 1000,
++              rfeControl = ctrl)
+> rfRFE
+
+Recursive feature selection
+
+Outer resampling method: Cross-Validation (10 fold, repeated 5 times) 
+
+Resampling performance over subset size:
+
+ Variables    ROC   Sens   Spec Accuracy  Kappa   ROCSD SensSD  SpecSD
+         1 0.8118 0.5471 0.8828   0.7913 0.4431 0.09952 0.2120 0.07878
+         3 0.8642 0.6518 0.9186   0.8457 0.5915 0.09219 0.1755 0.06166
+         5 0.8831 0.6661 0.9355   0.8616 0.6302 0.08270 0.1758 0.06560
+         7 0.8907 0.6629 0.9384   0.8630 0.6298 0.10364 0.1850 0.05653
+         9 0.8944 0.6739 0.9498   0.8743 0.6553 0.10096 0.1972 0.05200
+        11 0.8990 0.6996 0.9609   0.8892 0.6959 0.07327 0.1868 0.04681
+        13 0.8949 0.6800 0.9661   0.8876 0.6878 0.10076 0.1840 0.04331
+        15 0.8958 0.6775 0.9618   0.8838 0.6772 0.07637 0.2001 0.04492
+        17 0.8971 0.6643 0.9609   0.8795 0.6653 0.07636 0.1891 0.04460
+        19 0.8901 0.6536 0.9598   0.8757 0.6551 0.10029 0.1843 0.04541
+        21 0.8915 0.6475 0.9640   0.8772 0.6564 0.09863 0.1835 0.04415
+        23 0.8963 0.6400 0.9598   0.8719 0.6429 0.07537 0.1834 0.04325
+        25 0.8972 0.6321 0.9619   0.8713 0.6396 0.07558 0.1808 0.04109
+        27 0.8954 0.6389 0.9651   0.8757 0.6507 0.07918 0.1864 0.04438
+        29 0.8942 0.6204 0.9650   0.8704 0.6316 0.07567 0.2058 0.03939
+        31 0.8915 0.6132 0.9691   0.8712 0.6325 0.09752 0.2001 0.03873
+        33 0.8886 0.5957 0.9723   0.8689 0.6246 0.09596 0.1783 0.04013
+        35 0.8935 0.5993 0.9691   0.8674 0.6201 0.09710 0.1974 0.04114
+        37 0.8960 0.5993 0.9691   0.8675 0.6207 0.07607 0.1942 0.03988
+        39 0.8971 0.5850 0.9723   0.8661 0.6128 0.07454 0.1915 0.03592
+        41 0.8984 0.5804 0.9712   0.8638 0.6072 0.07327 0.1915 0.03747
+        43 0.8964 0.5743 0.9722   0.8631 0.6035 0.07324 0.1849 0.03615
+        45 0.8932 0.5771 0.9743   0.8653 0.6091 0.07414 0.1893 0.03473
+        47 0.8940 0.5904 0.9701   0.8659 0.6126 0.07573 0.2077 0.04184
+        49 0.8941 0.5668 0.9722   0.8607 0.5970 0.07321 0.1869 0.03918
+        51 0.8942 0.5521 0.9743   0.8584 0.5851 0.07521 0.1977 0.03921
+        53 0.8895 0.5496 0.9733   0.8570 0.5813 0.07491 0.1945 0.03614
+        55 0.8955 0.5421 0.9796   0.8594 0.5867 0.07407 0.1781 0.03092
+        57 0.8922 0.5354 0.9732   0.8532 0.5698 0.07508 0.1800 0.03651
+        59 0.8907 0.5421 0.9774   0.8578 0.5787 0.07343 0.2098 0.03441
+        61 0.8923 0.5211 0.9785   0.8532 0.5655 0.07578 0.1729 0.03116
+        63 0.8917 0.5364 0.9743   0.8540 0.5702 0.07438 0.1961 0.03755
+        65 0.8911 0.5307 0.9753   0.8533 0.5669 0.07668 0.1933 0.03648
+        67 0.8902 0.5375 0.9763   0.8561 0.5757 0.07483 0.1875 0.03321
+        69 0.8936 0.5164 0.9774   0.8510 0.5576 0.07386 0.1819 0.03311
+        71 0.8916 0.5104 0.9795   0.8509 0.5556 0.07280 0.1809 0.03280
+        73 0.8918 0.5193 0.9764   0.8510 0.5606 0.07255 0.1729 0.03611
+        75 0.8913 0.5107 0.9775   0.8495 0.5525 0.07426 0.1852 0.03416
+        77 0.8920 0.5050 0.9805   0.8502 0.5518 0.07209 0.1849 0.02911
+        79 0.8917 0.5046 0.9784   0.8486 0.5486 0.07399 0.1788 0.03121
+        81 0.8908 0.5161 0.9774   0.8510 0.5571 0.07464 0.1878 0.03306
+        83 0.8933 0.4968 0.9795   0.8473 0.5426 0.07146 0.1817 0.02934
+        85 0.8946 0.4939 0.9805   0.8472 0.5409 0.06710 0.1816 0.02716
+        87 0.8909 0.4943 0.9805   0.8473 0.5421 0.07248 0.1779 0.02892
+        89 0.8917 0.4829 0.9805   0.8443 0.5311 0.07386 0.1771 0.02892
+        91 0.8921 0.4775 0.9815   0.8435 0.5291 0.07241 0.1653 0.02889
+        93 0.8910 0.4743 0.9815   0.8428 0.5249 0.06988 0.1719 0.02687
+        95 0.8905 0.4832 0.9815   0.8451 0.5351 0.07589 0.1640 0.02889
+        97 0.8933 0.4775 0.9816   0.8436 0.5313 0.07223 0.1479 0.02864
+        99 0.8910 0.4975 0.9816   0.8489 0.5470 0.07361 0.1776 0.03055
+       101 0.8914 0.4764 0.9785   0.8412 0.5213 0.07410 0.1787 0.03276
+       103 0.8904 0.4629 0.9806   0.8389 0.5118 0.07313 0.1769 0.03569
+       105 0.8893 0.4850 0.9805   0.8449 0.5344 0.07444 0.1658 0.02916
+       107 0.8899 0.4718 0.9836   0.8435 0.5255 0.07187 0.1742 0.02614
+       109 0.8894 0.4661 0.9826   0.8413 0.5201 0.07055 0.1567 0.02653
+       111 0.8929 0.4579 0.9847   0.8406 0.5164 0.06995 0.1502 0.02571
+       113 0.8919 0.4489 0.9805   0.8353 0.4987 0.06764 0.1694 0.03081
+       115 0.8918 0.4443 0.9836   0.8360 0.4978 0.06946 0.1750 0.02614
+       117 0.8919 0.4518 0.9836   0.8382 0.5040 0.06757 0.1867 0.02614
+       119 0.8928 0.4607 0.9826   0.8397 0.5144 0.06590 0.1642 0.02858
+       121 0.8913 0.4496 0.9836   0.8375 0.5033 0.06931 0.1768 0.02822
+       123 0.8915 0.4493 0.9836   0.8375 0.5054 0.07025 0.1584 0.02614
+       125 0.8909 0.4554 0.9846   0.8397 0.5119 0.07223 0.1669 0.02579
+       127 0.8901 0.4354 0.9847   0.8344 0.4904 0.07144 0.1770 0.02571
+       129 0.8953 0.4443 0.9836   0.8360 0.4983 0.06540 0.1707 0.02614
+       131 0.8912 0.4379 0.9815   0.8329 0.4895 0.06964 0.1660 0.02889
+       132 0.8887 0.4411 0.9847   0.8360 0.4991 0.06751 0.1552 0.02571
+ AccuracySD KappaSD Selected
+    0.07619  0.2174         
+    0.06787  0.1870         
+    0.06685  0.1824         
+    0.06349  0.1799         
+    0.06095  0.1804         
+    0.05853  0.1715        *
+    0.05803  0.1741         
+    0.06403  0.1927         
+    0.06047  0.1837         
+    0.05622  0.1696         
+    0.05516  0.1721         
+    0.05263  0.1636         
+    0.05399  0.1672         
+    0.05742  0.1783         
+    0.06132  0.1947         
+    0.05885  0.1871         
+    0.05542  0.1766         
+    0.05908  0.1896         
+    0.05697  0.1814         
+    0.05714  0.1884         
+    0.05702  0.1840         
+    0.05374  0.1818         
+    0.05393  0.1815         
+    0.06372  0.2084         
+    0.05656  0.1808         
+    0.05966  0.2026         
+    0.05567  0.1899         
+    0.04959  0.1656         
+    0.05643  0.1899         
+    0.05763  0.2015         
+    0.04852  0.1676         
+    0.05429  0.1900         
+    0.05724  0.1963         
+    0.05459  0.1893         
+    0.04998  0.1795         
+    0.05083  0.1819         
+    0.05181  0.1753         
+    0.05217  0.1816         
+    0.05352  0.1900         
+    0.05000  0.1792         
+    0.05495  0.1915         
+    0.05219  0.1857         
+    0.04942  0.1831         
+    0.04987  0.1798         
+    0.04972  0.1803         
+    0.04647  0.1647         
+    0.05027  0.1857         
+    0.04869  0.1708         
+    0.04360  0.1540         
+    0.05047  0.1817         
+    0.05344  0.1943         
+    0.05122  0.1870         
+    0.04539  0.1672         
+    0.04741  0.1757         
+    0.04515  0.1686         
+    0.04205  0.1575         
+    0.05030  0.1838         
+    0.05014  0.1872         
+    0.05286  0.1985         
+    0.04860  0.1737         
+    0.05190  0.1900         
+    0.04502  0.1645         
+    0.04796  0.1753         
+    0.05167  0.1929         
+    0.04906  0.1839         
+    0.05073  0.1842         
+    0.04593  0.1689         
+
+The top 5 variables (out of 11):
+   Ab_42, tau, p_tau, VEGF, FAS
+
+> 
+> ctrl$functions <- ldaFuncs
+> ctrl$functions$summary <- fiveStats
+> 
+> set.seed(721)
+> ldaRFE <- rfe(training[, predVars],
++               training$Class,
++               sizes = varSeq,
++               metric = "ROC",
++               tol = 1.0e-12,
++               rfeControl = ctrl)
+> ldaRFE
+
+Recursive feature selection
+
+Outer resampling method: Cross-Validation (10 fold, repeated 5 times) 
+
+Resampling performance over subset size:
+
+ Variables    ROC   Sens   Spec Accuracy  Kappa   ROCSD SensSD  SpecSD
+         1 0.8483 0.6621 0.8795   0.8201 0.5385 0.08787 0.2009 0.07003
+         3 0.8518 0.6243 0.8899   0.8172 0.5208 0.08546 0.2032 0.06947
+         5 0.8509 0.6211 0.8979   0.8216 0.5278 0.08457 0.2038 0.06042
+         7 0.8517 0.6154 0.9053   0.8255 0.5341 0.08337 0.2241 0.07148
+         9 0.8513 0.6264 0.9043   0.8278 0.5424 0.08574 0.2168 0.06818
+        11 0.8566 0.6318 0.9176   0.8391 0.5676 0.08869 0.2132 0.06175
+        13 0.8818 0.6736 0.9311   0.8603 0.6256 0.08136 0.2104 0.06389
+        15 0.8872 0.6779 0.9311   0.8617 0.6298 0.07954 0.1970 0.06091
+        17 0.8900 0.6729 0.9215   0.8532 0.6129 0.07704 0.1885 0.07138
+        19 0.8975 0.7050 0.9289   0.8676 0.6494 0.07703 0.1940 0.05814
+        21 0.9004 0.7050 0.9299   0.8683 0.6503 0.07364 0.1971 0.05628
+        23 0.9067 0.7125 0.9289   0.8698 0.6536 0.07214 0.2127 0.05903
+        25 0.9109 0.7193 0.9279   0.8708 0.6589 0.06827 0.2026 0.05995
+        27 0.9104 0.7350 0.9271   0.8745 0.6720 0.06855 0.1866 0.05694
+        29 0.9128 0.7404 0.9322   0.8798 0.6846 0.06828 0.1834 0.05535
+        31 0.9128 0.7346 0.9217   0.8706 0.6632 0.06917 0.1819 0.05352
+        33 0.9157 0.7429 0.9279   0.8774 0.6790 0.06941 0.1854 0.05217
+        35 0.9163 0.7407 0.9217   0.8721 0.6678 0.06746 0.1848 0.05660
+        37 0.9131 0.7436 0.9187   0.8706 0.6654 0.06615 0.1861 0.05812
+        39 0.9126 0.7461 0.9187   0.8714 0.6679 0.06456 0.1853 0.05899
+        41 0.9149 0.7436 0.9155   0.8684 0.6610 0.06764 0.1843 0.06073
+        43 0.9131 0.7486 0.9145   0.8691 0.6630 0.06749 0.1872 0.05956
+        45 0.9145 0.7539 0.9094   0.8669 0.6606 0.06560 0.1719 0.05729
+        47 0.9109 0.7411 0.9011   0.8572 0.6369 0.06528 0.1747 0.05511
+        49 0.9119 0.7471 0.9021   0.8595 0.6426 0.06766 0.1817 0.05519
+        51 0.9110 0.7471 0.9031   0.8601 0.6430 0.06583 0.1885 0.05267
+        53 0.9098 0.7443 0.9043   0.8601 0.6427 0.06406 0.1934 0.06022
+        55 0.9082 0.7300 0.9012   0.8541 0.6261 0.06495 0.1950 0.05753
+        57 0.9075 0.7350 0.9054   0.8586 0.6367 0.06390 0.1997 0.06148
+        59 0.9056 0.7357 0.9115   0.8632 0.6464 0.06710 0.1977 0.05784
+        61 0.9082 0.7357 0.9095   0.8617 0.6448 0.06461 0.1885 0.06244
+        63 0.9087 0.7300 0.9065   0.8579 0.6364 0.06374 0.1890 0.06966
+        65 0.9073 0.7364 0.9036   0.8573 0.6360 0.06500 0.1967 0.06857
+        67 0.9043 0.7411 0.9045   0.8595 0.6429 0.06666 0.1847 0.06917
+        69 0.8989 0.7414 0.9005   0.8566 0.6363 0.07321 0.1916 0.07001
+        71 0.8989 0.7386 0.9003   0.8557 0.6332 0.07140 0.1973 0.07053
+        73 0.8980 0.7332 0.9003   0.8542 0.6301 0.07119 0.1840 0.06976
+        75 0.8954 0.7354 0.8953   0.8514 0.6275 0.07105 0.1649 0.07786
+        77 0.8931 0.7354 0.8899   0.8475 0.6193 0.07323 0.1623 0.07480
+        79 0.8911 0.7461 0.8818   0.8445 0.6163 0.07300 0.1430 0.07030
+        81 0.8878 0.7489 0.8848   0.8474 0.6235 0.06987 0.1453 0.07379
+        83 0.8856 0.7382 0.8733   0.8360 0.5990 0.06906 0.1441 0.08200
+        85 0.8836 0.7350 0.8766   0.8376 0.6003 0.07030 0.1485 0.07922
+        87 0.8825 0.7296 0.8766   0.8362 0.5961 0.07112 0.1482 0.07726
+        89 0.8831 0.7189 0.8726   0.8304 0.5801 0.07049 0.1561 0.07203
+        91 0.8813 0.7293 0.8694   0.8310 0.5855 0.07322 0.1527 0.07665
+        93 0.8778 0.7236 0.8755   0.8340 0.5893 0.07479 0.1585 0.07555
+        95 0.8749 0.7339 0.8745   0.8362 0.5961 0.09342 0.1570 0.07480
+        97 0.8827 0.7282 0.8743   0.8345 0.5922 0.07452 0.1570 0.07919
+        99 0.8822 0.7371 0.8733   0.8362 0.5959 0.07307 0.1522 0.06643
+       101 0.8843 0.7196 0.8765   0.8339 0.5853 0.07526 0.1620 0.06258
+       103 0.8808 0.7164 0.8693   0.8278 0.5714 0.07495 0.1717 0.06534
+       105 0.8787 0.7318 0.8672   0.8301 0.5805 0.07423 0.1651 0.06133
+       107 0.8746 0.7096 0.8682   0.8249 0.5651 0.07805 0.1584 0.06424
+       109 0.8679 0.7036 0.8673   0.8227 0.5589 0.09389 0.1616 0.06383
+       111 0.8688 0.7064 0.8702   0.8257 0.5653 0.07951 0.1644 0.06510
+       113 0.8635 0.7182 0.8652   0.8251 0.5678 0.08714 0.1687 0.06935
+       115 0.8623 0.6993 0.8577   0.8145 0.5415 0.09186 0.1710 0.06934
+       117 0.8586 0.6968 0.8516   0.8093 0.5307 0.09189 0.1724 0.06903
+       119 0.8570 0.6979 0.8518   0.8099 0.5323 0.09064 0.1825 0.07745
+       121 0.8581 0.7093 0.8508   0.8121 0.5403 0.08832 0.1768 0.07823
+       123 0.8559 0.6957 0.8477   0.8064 0.5241 0.08573 0.1852 0.07355
+       125 0.8507 0.6907 0.8404   0.7996 0.5096 0.09223 0.1859 0.07252
+       127 0.8439 0.6771 0.8405   0.7959 0.4979 0.08763 0.1894 0.07237
+       129 0.8418 0.6739 0.8313   0.7883 0.4827 0.08636 0.1879 0.07310
+       131 0.8439 0.6857 0.8294   0.7900 0.4910 0.08593 0.1803 0.08189
+       132 0.8439 0.6857 0.8294   0.7900 0.4910 0.08593 0.1803 0.08189
+ AccuracySD KappaSD Selected
+    0.06212  0.1693         
+    0.06092  0.1694         
+    0.05878  0.1723         
+    0.07356  0.2082         
+    0.06843  0.1960         
+    0.06755  0.1931         
+    0.07173  0.1998         
+    0.06132  0.1738         
+    0.06709  0.1779         
+    0.06469  0.1773         
+    0.05814  0.1630         
+    0.06293  0.1778         
+    0.06107  0.1678         
+    0.05941  0.1600         
+    0.05484  0.1485         
+    0.05414  0.1480         
+    0.05343  0.1499         
+    0.05565  0.1534        *
+    0.05921  0.1614         
+    0.05946  0.1604         
+    0.05870  0.1577         
+    0.05789  0.1585         
+    0.05406  0.1445         
+    0.05679  0.1521         
+    0.05793  0.1556         
+    0.05796  0.1586         
+    0.05942  0.1618         
+    0.06066  0.1687         
+    0.06102  0.1704         
+    0.05765  0.1624         
+    0.05590  0.1549         
+    0.05753  0.1524         
+    0.06565  0.1722         
+    0.06434  0.1671         
+    0.06391  0.1670         
+    0.06698  0.1765         
+    0.06320  0.1639         
+    0.06074  0.1485         
+    0.06176  0.1516         
+    0.05911  0.1417         
+    0.06292  0.1510         
+    0.06461  0.1510         
+    0.05977  0.1408         
+    0.06272  0.1476         
+    0.06231  0.1524         
+    0.06917  0.1646         
+    0.06792  0.1640         
+    0.06741  0.1630         
+    0.07049  0.1658         
+    0.06348  0.1552         
+    0.06082  0.1547         
+    0.06131  0.1588         
+    0.05867  0.1505         
+    0.05767  0.1460         
+    0.06143  0.1582         
+    0.05859  0.1501         
+    0.06193  0.1546         
+    0.06218  0.1573         
+    0.06459  0.1642         
+    0.07084  0.1784         
+    0.06828  0.1704         
+    0.07060  0.1793         
+    0.06999  0.1790         
+    0.06957  0.1782         
+    0.07027  0.1782         
+    0.06589  0.1611         
+    0.06589  0.1611         
+
+The top 5 variables (out of 35):
+   Ab_42, tau, p_tau, MMP10, MIF
+
+> 
+> ctrl$functions <- nbFuncs
+> ctrl$functions$summary <- fiveStats
+> set.seed(721)
+> nbRFE <- rfe(training[, predVars],
++               training$Class,
++               sizes = varSeq,
++               metric = "ROC",
++               rfeControl = ctrl)
+> nbRFE
+
+Recursive feature selection
+
+Outer resampling method: Cross-Validation (10 fold, repeated 5 times) 
+
+Resampling performance over subset size:
+
+ Variables    ROC   Sens   Spec Accuracy  Kappa   ROCSD SensSD  SpecSD
+         1 0.8219 0.6286 0.8806   0.8112 0.5133 0.09390 0.1858 0.07246
+         3 0.8260 0.6171 0.8537   0.7886 0.4655 0.08952 0.1996 0.08506
+         5 0.8176 0.6200 0.8374   0.7774 0.4472 0.08568 0.1868 0.08760
+         7 0.8171 0.6107 0.8355   0.7737 0.4368 0.08333 0.1784 0.08128
+         9 0.8152 0.6093 0.8274   0.7672 0.4248 0.08766 0.1798 0.08402
+        11 0.8197 0.6143 0.8325   0.7723 0.4370 0.08881 0.1644 0.08098
+        13 0.8264 0.6532 0.8348   0.7845 0.4720 0.08559 0.1782 0.08413
+        15 0.8274 0.6582 0.8325   0.7844 0.4725 0.08184 0.1732 0.07366
+        17 0.8318 0.6807 0.8387   0.7950 0.5000 0.08452 0.1690 0.07622
+        19 0.8314 0.6671 0.8437   0.7948 0.4955 0.08804 0.1804 0.08144
+        21 0.8294 0.6589 0.8426   0.7918 0.4866 0.08704 0.1847 0.08180
+        23 0.8275 0.6457 0.8457   0.7904 0.4788 0.09091 0.1952 0.08045
+        25 0.8280 0.6436 0.8404   0.7859 0.4697 0.09197 0.1937 0.07888
+        27 0.8307 0.6436 0.8456   0.7896 0.4766 0.09182 0.1942 0.07845
+        29 0.8291 0.6300 0.8446   0.7852 0.4643 0.09237 0.1952 0.08216
+        31 0.8229 0.6182 0.8416   0.7799 0.4508 0.09497 0.1859 0.08083
+        33 0.8222 0.6182 0.8386   0.7777 0.4481 0.08826 0.1859 0.08690
+        35 0.8185 0.6264 0.8345   0.7769 0.4487 0.09244 0.1806 0.08364
+        37 0.8165 0.6243 0.8344   0.7761 0.4454 0.09084 0.1894 0.08191
+        39 0.8147 0.6214 0.8324   0.7740 0.4414 0.09174 0.1928 0.08403
+        41 0.8113 0.6139 0.8244   0.7659 0.4251 0.09145 0.1896 0.08912
+        43 0.8106 0.6111 0.8264   0.7667 0.4251 0.08928 0.1869 0.08561
+        45 0.8078 0.6025 0.8212   0.7606 0.4105 0.09236 0.1962 0.08997
+        47 0.8031 0.5971 0.8191   0.7576 0.4035 0.09325 0.1960 0.09122
+        49 0.8006 0.6021 0.8169   0.7574 0.4048 0.09371 0.1918 0.08948
+        51 0.7942 0.5993 0.8096   0.7514 0.3923 0.09367 0.1954 0.08918
+        53 0.7942 0.6021 0.8067   0.7500 0.3922 0.09352 0.1929 0.09279
+        55 0.7924 0.6025 0.8047   0.7486 0.3897 0.09154 0.1962 0.09277
+        57 0.7910 0.5968 0.8037   0.7463 0.3835 0.09229 0.1991 0.09369
+        59 0.7905 0.5939 0.8016   0.7441 0.3782 0.09206 0.1984 0.09330
+        61 0.7885 0.6054 0.8005   0.7463 0.3872 0.09605 0.1925 0.09374
+        63 0.7856 0.6025 0.8035   0.7477 0.3882 0.09639 0.1929 0.09137
+        65 0.7853 0.5993 0.7953   0.7409 0.3750 0.09680 0.1954 0.09268
+        67 0.7839 0.5996 0.7984   0.7432 0.3796 0.09714 0.1934 0.09261
+        69 0.7824 0.5943 0.7994   0.7425 0.3760 0.09728 0.1898 0.09267
+        71 0.7787 0.5996 0.7973   0.7425 0.3792 0.10154 0.1845 0.09806
+        73 0.7791 0.6025 0.7973   0.7432 0.3809 0.10094 0.1851 0.09763
+        75 0.7794 0.5996 0.7942   0.7402 0.3745 0.10232 0.1901 0.09662
+        77 0.7792 0.6018 0.7973   0.7432 0.3811 0.10076 0.1810 0.09632
+        79 0.7786 0.6100 0.7972   0.7453 0.3875 0.10145 0.1815 0.09363
+        81 0.7783 0.6150 0.7973   0.7469 0.3928 0.10362 0.1801 0.09841
+        83 0.7785 0.6100 0.7953   0.7440 0.3859 0.10308 0.1833 0.09937
+        85 0.7799 0.6043 0.7953   0.7424 0.3807 0.10384 0.1844 0.09601
+        87 0.7798 0.6096 0.7984   0.7462 0.3895 0.10427 0.1826 0.09587
+        89 0.7796 0.6096 0.7953   0.7439 0.3859 0.10255 0.1826 0.09853
+        91 0.7803 0.6043 0.7974   0.7439 0.3838 0.10025 0.1850 0.09901
+        93 0.7813 0.6071 0.8025   0.7484 0.3926 0.09988 0.1861 0.09907
+        95 0.7819 0.6046 0.8014   0.7469 0.3886 0.09946 0.1900 0.09792
+        97 0.7841 0.5989 0.8025   0.7462 0.3852 0.09933 0.1877 0.09702
+        99 0.7844 0.5986 0.8025   0.7462 0.3862 0.09856 0.1808 0.09932
+       101 0.7856 0.5982 0.8066   0.7492 0.3906 0.09764 0.1842 0.09638
+       103 0.7865 0.6007 0.8066   0.7499 0.3934 0.09868 0.1808 0.09638
+       105 0.7880 0.6032 0.8097   0.7529 0.3997 0.09868 0.1785 0.09609
+       107 0.7881 0.5982 0.8046   0.7476 0.3880 0.09737 0.1876 0.09781
+       109 0.7909 0.5954 0.8026   0.7454 0.3825 0.09565 0.1869 0.09620
+       111 0.7898 0.5929 0.8036   0.7454 0.3814 0.09557 0.1885 0.09590
+       113 0.7914 0.5954 0.8057   0.7476 0.3865 0.09535 0.1864 0.09604
+       115 0.7939 0.5982 0.8108   0.7522 0.3961 0.09499 0.1826 0.09499
+       117 0.7969 0.5986 0.8118   0.7530 0.3980 0.09534 0.1855 0.09748
+       119 0.7948 0.6039 0.8108   0.7537 0.4019 0.09458 0.1827 0.09978
+       121 0.7962 0.5986 0.8118   0.7529 0.3990 0.09327 0.1725 0.09878
+       123 0.7993 0.5986 0.8108   0.7522 0.3978 0.09368 0.1725 0.09916
+       125 0.7999 0.6039 0.8108   0.7537 0.4020 0.09421 0.1733 0.09732
+       127 0.7987 0.6014 0.8118   0.7538 0.4014 0.09424 0.1683 0.09737
+       129 0.7968 0.6014 0.8108   0.7530 0.4001 0.09664 0.1683 0.09732
+       131 0.7980 0.5936 0.8139   0.7530 0.3966 0.09522 0.1742 0.09706
+       132 0.7980 0.5936 0.8139   0.7530 0.3966 0.09522 0.1742 0.09706
+ AccuracySD KappaSD Selected
+    0.05981  0.1591         
+    0.07148  0.1822         
+    0.06939  0.1721         
+    0.06715  0.1668         
+    0.06916  0.1679         
+    0.06712  0.1629         
+    0.07135  0.1725         
+    0.07058  0.1762         
+    0.06595  0.1587        *
+    0.07284  0.1747         
+    0.07193  0.1740         
+    0.07296  0.1821         
+    0.07436  0.1849         
+    0.07286  0.1808         
+    0.07526  0.1843         
+    0.07277  0.1781         
+    0.07880  0.1876         
+    0.07058  0.1718         
+    0.07097  0.1773         
+    0.08000  0.1952         
+    0.07929  0.1885         
+    0.07735  0.1855         
+    0.07910  0.1935         
+    0.08068  0.1953         
+    0.07778  0.1875         
+    0.07609  0.1850         
+    0.07929  0.1904         
+    0.08009  0.1924         
+    0.08398  0.2005         
+    0.08018  0.1921         
+    0.08105  0.1910         
+    0.07906  0.1878         
+    0.07920  0.1881         
+    0.08124  0.1907         
+    0.07596  0.1770         
+    0.07690  0.1735         
+    0.07299  0.1650         
+    0.07609  0.1751         
+    0.07310  0.1658         
+    0.07230  0.1677         
+    0.07457  0.1679         
+    0.07593  0.1697         
+    0.07698  0.1750         
+    0.07872  0.1803         
+    0.07928  0.1801         
+    0.07925  0.1805         
+    0.07853  0.1784         
+    0.08007  0.1844         
+    0.08021  0.1863         
+    0.08105  0.1845         
+    0.08156  0.1900         
+    0.08351  0.1923         
+    0.08267  0.1898         
+    0.08395  0.1959         
+    0.08036  0.1882         
+    0.08116  0.1892         
+    0.08057  0.1877         
+    0.08211  0.1924         
+    0.08577  0.2000         
+    0.08526  0.1957         
+    0.08264  0.1883         
+    0.08220  0.1868         
+    0.08051  0.1835         
+    0.07932  0.1797         
+    0.07973  0.1809         
+    0.07924  0.1821         
+    0.07924  0.1821         
+
+The top 5 variables (out of 17):
+   Ab_42, tau, p_tau, MMP10, MIF
+
+> 
+> ## Here, the caretFuncs list allows for a model to be tuned at each iteration 
+> ## of feature seleciton.
+> 
+> ctrl$functions <- caretFuncs
+> ctrl$functions$summary <- fiveStats
+> 
+> ## This options tells train() to run it's model tuning
+> ## sequentially. Otherwise, there would be parallel processing at two
+> ## levels, which is possible but requires W^2 workers. On our machine,
+> ## it was more efficient to only run the RFE process in parallel. 
+> 
+> cvCtrl <- trainControl(method = "cv",
++                        verboseIter = FALSE,
++                        classProbs = TRUE,
++                        allowParallel = FALSE)
+> 
+> set.seed(721)
+> svmRFE <- rfe(training[, predVars],
++               training$Class,
++               sizes = varSeq,
++               rfeControl = ctrl,
++               metric = "ROC",
++               ## Now arguments to train() are used.
++               method = "svmRadial",
++               tuneLength = 12,
++               preProc = c("center", "scale"),
++               trControl = cvCtrl)
+> svmRFE
+
+Recursive feature selection
+
+Outer resampling method: Cross-Validation (10 fold, repeated 5 times) 
+
+Resampling performance over subset size:
+
+ Variables    ROC     Sens   Spec Accuracy     Kappa   ROCSD  SensSD   SpecSD
+         1 0.5992 0.000000 1.0000   0.7267  0.000000 0.09667 0.00000 0.000000
+         3 0.6073 0.000000 0.9816   0.7132 -0.022917 0.09114 0.00000 0.047732
+         5 0.5673 0.000000 0.9980   0.7252 -0.002772 0.08826 0.00000 0.009897
+         7 0.5889 0.002857 0.9928   0.7222 -0.005903 0.08517 0.02020 0.020578
+         9 0.5887 0.000000 1.0000   0.7267  0.000000 0.09401 0.00000 0.000000
+        11 0.6070 0.000000 0.9950   0.7231 -0.006465 0.08595 0.00000 0.023146
+        13 0.5879 0.000000 0.9979   0.7252 -0.002853 0.08338 0.00000 0.010418
+        15 0.6080 0.002857 0.9948   0.7237 -0.002844 0.09329 0.02020 0.030460
+        17 0.5880 0.000000 1.0000   0.7267  0.000000 0.10375 0.00000 0.000000
+        19 0.6023 0.000000 1.0000   0.7267  0.000000 0.08176 0.00000 0.000000
+        21 0.6306 0.000000 1.0000   0.7267  0.000000 0.08612 0.00000 0.000000
+        23 0.6254 0.005000 0.9926   0.7230 -0.002286 0.10162 0.03536 0.052103
+        25 0.6386 0.022500 0.9765   0.7163 -0.003033 0.10306 0.08257 0.059499
+        27 0.6318 0.027857 0.9875   0.7253  0.018863 0.10429 0.07946 0.042998
+        29 0.6455 0.032857 0.9702   0.7141  0.005468 0.10251 0.05921 0.063391
+        31 0.6546 0.076429 0.9601   0.7187  0.046491 0.09340 0.11449 0.076347
+        33 0.6895 0.051429 0.9559   0.7089  0.008298 0.10534 0.10559 0.081718
+        35 0.7133 0.263214 0.9082   0.7321  0.190207 0.11230 0.19835 0.081049
+        37 0.7129 0.308571 0.8992   0.7380  0.237144 0.11945 0.14167 0.076088
+        39 0.7357 0.344286 0.9041   0.7508  0.274377 0.10001 0.19462 0.077272
+        41 0.7379 0.289643 0.9268   0.7528  0.253877 0.09670 0.15867 0.074065
+        43 0.7689 0.400000 0.9187   0.7770  0.357695 0.08811 0.16922 0.072745
+        45 0.7809 0.396786 0.9208   0.7778  0.355492 0.08332 0.17586 0.066820
+        47 0.7890 0.440000 0.9128   0.7834  0.386061 0.10250 0.18288 0.064302
+        49 0.7886 0.438929 0.9169   0.7865  0.392350 0.10043 0.17894 0.067824
+        51 0.8011 0.453214 0.9231   0.7946  0.417791 0.08199 0.16437 0.064503
+        53 0.7945 0.435357 0.9271   0.7923  0.404838 0.07990 0.17710 0.066313
+        55 0.7844 0.373571 0.9302   0.7780  0.347712 0.09024 0.15898 0.067866
+        57 0.7801 0.429286 0.9251   0.7893  0.397178 0.08697 0.15984 0.062116
+        59 0.7840 0.406786 0.9302   0.7870  0.380440 0.08300 0.16360 0.058095
+        61 0.7832 0.404643 0.9156   0.7756  0.354633 0.08899 0.18412 0.075157
+        63 0.7694 0.352143 0.9138   0.7599  0.297365 0.08880 0.17854 0.071234
+        65 0.7782 0.374643 0.9247   0.7741  0.337678 0.08605 0.17724 0.066022
+        67 0.7706 0.357500 0.9095   0.7583  0.300310 0.09071 0.16644 0.076601
+        69 0.7667 0.329643 0.9169   0.7561  0.280446 0.09296 0.16741 0.071080
+        71 0.7745 0.352500 0.9220   0.7660  0.313624 0.09282 0.16848 0.068125
+        73 0.7800 0.396071 0.9084   0.7682  0.337073 0.09321 0.17406 0.063482
+        75 0.7756 0.385000 0.9033   0.7613  0.315118 0.10165 0.18708 0.063527
+        77 0.7893 0.451429 0.9026   0.7791  0.385334 0.08456 0.16995 0.069644
+        79 0.7898 0.443214 0.9115   0.7833  0.384702 0.07912 0.19799 0.059336
+        81 0.7849 0.454643 0.9055   0.7824  0.390621 0.11366 0.17348 0.059356
+        83 0.7872 0.455357 0.9024   0.7800  0.389321 0.11736 0.16139 0.065539
+        85 0.8152 0.454286 0.9126   0.7876  0.401351 0.07729 0.17333 0.062227
+        87 0.8141 0.488571 0.9188   0.8012  0.445263 0.10475 0.15091 0.057604
+        89 0.8269 0.488929 0.9137   0.7975  0.438241 0.07434 0.14489 0.059581
+        91 0.8232 0.476071 0.9055   0.7878  0.415497 0.06904 0.14124 0.069269
+        93 0.8234 0.486071 0.9138   0.7966  0.434105 0.08009 0.16176 0.062246
+        95 0.8209 0.472857 0.9147   0.7937  0.424590 0.08277 0.15162 0.064941
+        97 0.8199 0.483929 0.9127   0.7953  0.432790 0.07939 0.14593 0.062112
+        99 0.8230 0.505357 0.9148   0.8027  0.455522 0.08106 0.15564 0.064685
+       101 0.8226 0.508571 0.9168   0.8049  0.461074 0.07996 0.15527 0.061011
+       103 0.8241 0.508214 0.9137   0.8025  0.455507 0.08196 0.15895 0.063350
+       105 0.8257 0.508214 0.9116   0.8011  0.453564 0.08035 0.15153 0.063899
+       107 0.8229 0.521786 0.9127   0.8055  0.467885 0.08210 0.14651 0.063560
+       109 0.8228 0.523929 0.9096   0.8040  0.464325 0.08319 0.16253 0.065807
+       111 0.8172 0.527143 0.9149   0.8088  0.475035 0.08126 0.16803 0.064092
+       113 0.8167 0.516071 0.9077   0.8005  0.454315 0.08427 0.17468 0.070508
+       115 0.8159 0.507143 0.9178   0.8055  0.459962 0.08318 0.16646 0.063741
+       117 0.8147 0.518214 0.9219   0.8117  0.476428 0.08693 0.17134 0.063079
+       119 0.8128 0.518214 0.9087   0.8018  0.458327 0.08781 0.16071 0.068634
+       121 0.8198 0.516071 0.9209   0.8102  0.471844 0.08340 0.17745 0.061381
+       123 0.8211 0.518929 0.9198   0.8100  0.471721 0.08670 0.18126 0.065156
+       125 0.8830 0.608571 0.9528   0.8587  0.608759 0.08350 0.14685 0.048135
+       127 0.8919 0.668929 0.9569   0.8782  0.666291 0.08003 0.16741 0.046740
+       129 0.8886 0.655357 0.9517   0.8707  0.647506 0.07868 0.15940 0.051312
+       131 0.8895 0.641786 0.9486   0.8647  0.629296 0.07758 0.17126 0.049810
+       132 0.8888 0.647500 0.9497   0.8670  0.637493 0.07770 0.16117 0.053496
+ AccuracySD KappaSD Selected
+    0.01339 0.00000         
+    0.03494 0.05634         
+    0.01381 0.01372         
+    0.01809 0.03150         
+    0.01339 0.00000         
+    0.02164 0.02914         
+    0.01624 0.01412         
+    0.02161 0.01409         
+    0.01339 0.00000         
+    0.01339 0.00000         
+    0.01339 0.00000         
+    0.03224 0.01616         
+    0.03386 0.06057         
+    0.02620 0.06893         
+    0.04012 0.06397         
+    0.04946 0.11954         
+    0.04480 0.08083         
+    0.05768 0.18865         
+    0.05887 0.15950         
+    0.06073 0.19089         
+    0.06515 0.19062         
+    0.06259 0.18251         
+    0.06173 0.18963         
+    0.06464 0.19699         
+    0.06270 0.18776         
+    0.06669 0.19459         
+    0.07104 0.20965         
+    0.05740 0.17149         
+    0.06326 0.18157         
+    0.05735 0.17433         
+    0.05784 0.17594         
+    0.05388 0.16909         
+    0.05689 0.17564         
+    0.05810 0.16341         
+    0.05404 0.16075         
+    0.06717 0.19564         
+    0.06387 0.19121         
+    0.05766 0.18400         
+    0.06755 0.18436         
+    0.06044 0.18245         
+    0.06122 0.18458         
+    0.06508 0.17929         
+    0.06010 0.17534         
+    0.05706 0.16139         
+    0.05347 0.14988         
+    0.05728 0.14979         
+    0.05861 0.16776         
+    0.06057 0.16818         
+    0.05932 0.16222         
+    0.06122 0.16498         
+    0.05873 0.16218         
+    0.05662 0.15651         
+    0.05642 0.15163         
+    0.05346 0.14450         
+    0.05928 0.16323         
+    0.06509 0.18163         
+    0.07039 0.19169         
+    0.05784 0.16484         
+    0.06028 0.17204         
+    0.06169 0.16742         
+    0.05731 0.16836         
+    0.05411 0.15979         
+    0.05422 0.15325         
+    0.05735 0.16252        *
+    0.05680 0.15694         
+    0.05812 0.16474         
+    0.05978 0.16318         
+
+The top 5 variables (out of 127):
+   Ab_42, tau, p_tau, MMP10, MIF
+
+> 
+> ctrl$functions <- lrFuncs
+> ctrl$functions$summary <- fiveStats
+> 
+> set.seed(721)
+> lrRFE <- rfe(training[, predVars],
++                training$Class,
++                sizes = varSeq,
++                metric = "ROC",
++                rfeControl = ctrl)
+> lrRFE
+
+Recursive feature selection
+
+Outer resampling method: Cross-Validation (10 fold, repeated 5 times) 
+
+Resampling performance over subset size:
+
+ Variables    ROC   Sens   Spec Accuracy  Kappa   ROCSD SensSD  SpecSD
+         1 0.7600 0.3325 0.9313   0.7675 0.2868 0.13224 0.2611 0.06965
+         3 0.7787 0.4489 0.9054   0.7800 0.3692 0.13636 0.2786 0.07627
+         5 0.8002 0.5332 0.9148   0.8099 0.4651 0.14821 0.2762 0.07436
+         7 0.8300 0.6118 0.9067   0.8258 0.5318 0.12810 0.2435 0.07093
+         9 0.8497 0.6425 0.9035   0.8317 0.5561 0.10148 0.2136 0.06977
+        11 0.8550 0.6589 0.9062   0.8381 0.5792 0.09568 0.1699 0.06843
+        13 0.8571 0.6536 0.9053   0.8361 0.5732 0.09524 0.1703 0.06620
+        15 0.8543 0.6679 0.9000   0.8361 0.5778 0.10808 0.1706 0.07023
+        17 0.8529 0.6729 0.8837   0.8257 0.5564 0.10130 0.1704 0.06520
+        19 0.8562 0.6696 0.8866   0.8273 0.5562 0.10051 0.1889 0.06399
+        21 0.8515 0.6614 0.8826   0.8220 0.5445 0.10679 0.1867 0.06815
+        23 0.8473 0.6811 0.8703   0.8183 0.5447 0.10444 0.1812 0.07585
+        25 0.8523 0.6775 0.8682   0.8160 0.5386 0.10208 0.1808 0.07375
+        27 0.8448 0.6775 0.8651   0.8138 0.5336 0.10287 0.1871 0.07084
+        29 0.8369 0.6914 0.8621   0.8153 0.5406 0.11255 0.1918 0.07864
+        31 0.8172 0.6743 0.8518   0.8032 0.5125 0.14429 0.1901 0.07863
+        33 0.8239 0.6804 0.8417   0.7974 0.5029 0.10737 0.1839 0.07630
+        35 0.7846 0.6850 0.8249   0.7866 0.4862 0.14152 0.1684 0.07715
+        37 0.7456 0.6629 0.8212   0.7778 0.4625 0.15954 0.1755 0.07874
+        39 0.7291 0.6646 0.8136   0.7732 0.4540 0.15947 0.1853 0.08543
+        41 0.7472 0.6707 0.8197   0.7792 0.4659 0.13699 0.1816 0.07805
+        43 0.7364 0.6468 0.8153   0.7691 0.4400 0.14810 0.1897 0.08137
+        45 0.7636 0.6746 0.8003   0.7657 0.4450 0.10668 0.1683 0.09067
+        47 0.7619 0.6904 0.8011   0.7706 0.4602 0.12478 0.1685 0.09794
+        49 0.7720 0.6782 0.8156   0.7776 0.4673 0.11553 0.1853 0.09389
+        51 0.7819 0.7029 0.8099   0.7800 0.4813 0.11128 0.1693 0.09576
+        53 0.7836 0.6939 0.8213   0.7860 0.4916 0.11668 0.1542 0.09829
+        55 0.7984 0.7000 0.8159   0.7838 0.4902 0.08453 0.1478 0.10211
+        57 0.7741 0.6768 0.8151   0.7765 0.4683 0.12412 0.1706 0.10082
+        59 0.7795 0.6657 0.8119   0.7710 0.4551 0.12299 0.1737 0.10371
+        61 0.7921 0.6743 0.8189   0.7786 0.4707 0.10119 0.1800 0.09823
+        63 0.7885 0.6757 0.8024   0.7674 0.4501 0.10087 0.1745 0.09314
+        65 0.7939 0.6786 0.8106   0.7740 0.4637 0.10055 0.1827 0.10282
+        67 0.7955 0.6511 0.8046   0.7621 0.4327 0.09315 0.1860 0.09935
+        69 0.7980 0.6871 0.8036   0.7712 0.4634 0.10358 0.1645 0.10550
+        71 0.7881 0.6864 0.7944   0.7645 0.4525 0.10688 0.1845 0.11695
+        73 0.7837 0.6632 0.7944   0.7577 0.4294 0.10418 0.1899 0.10392
+        75 0.7841 0.6668 0.7923   0.7570 0.4286 0.10367 0.1970 0.10784
+        77 0.7805 0.6682 0.7961   0.7605 0.4370 0.10579 0.1826 0.11082
+        79 0.7812 0.6696 0.7985   0.7628 0.4430 0.10462 0.1768 0.11188
+        81 0.7837 0.6621 0.7901   0.7545 0.4259 0.09616 0.1793 0.11344
+        83 0.7837 0.6486 0.7881   0.7493 0.4109 0.09257 0.1870 0.11317
+        85 0.7843 0.6600 0.7858   0.7508 0.4192 0.09711 0.1624 0.11135
+        87 0.7869 0.6350 0.7870   0.7447 0.3995 0.08773 0.1785 0.11444
+        89 0.7912 0.6679 0.7838   0.7514 0.4236 0.08960 0.1570 0.11414
+        91 0.7962 0.6764 0.7851   0.7545 0.4329 0.08569 0.1592 0.11996
+        93 0.7918 0.6875 0.7828   0.7559 0.4353 0.08811 0.1699 0.10608
+        95 0.7920 0.6689 0.7768   0.7463 0.4130 0.08550 0.1707 0.10948
+        97 0.7834 0.6632 0.7791   0.7463 0.4117 0.09253 0.1660 0.11186
+        99 0.7832 0.6657 0.7747   0.7438 0.4072 0.08899 0.1731 0.10941
+       101 0.7851 0.6679 0.7778   0.7470 0.4150 0.09378 0.1672 0.11201
+       103 0.7876 0.6682 0.7758   0.7455 0.4119 0.09109 0.1716 0.11139
+       105 0.7872 0.6725 0.7842   0.7529 0.4282 0.09882 0.1589 0.11508
+       107 0.7869 0.6775 0.7852   0.7552 0.4330 0.10293 0.1613 0.11178
+       109 0.7845 0.6664 0.7841   0.7515 0.4235 0.11155 0.1595 0.11597
+       111 0.7831 0.6646 0.7746   0.7440 0.4099 0.10095 0.1708 0.11756
+       113 0.7830 0.6646 0.7788   0.7470 0.4131 0.09778 0.1708 0.10983
+       115 0.7841 0.6643 0.7778   0.7462 0.4123 0.09882 0.1659 0.11286
+       117 0.7827 0.6696 0.7819   0.7507 0.4220 0.10605 0.1594 0.10893
+       119 0.7831 0.6675 0.7831   0.7508 0.4195 0.10265 0.1760 0.10406
+       121 0.7848 0.6721 0.7779   0.7485 0.4188 0.10165 0.1679 0.11203
+       123 0.7839 0.6675 0.7779   0.7471 0.4147 0.10471 0.1686 0.11040
+       125 0.7822 0.6696 0.7779   0.7478 0.4175 0.10507 0.1696 0.11471
+       127 0.7818 0.6696 0.7779   0.7479 0.4173 0.10490 0.1632 0.10984
+       129 0.7825 0.6693 0.7788   0.7485 0.4179 0.10320 0.1659 0.10946
+       131 0.7846 0.6696 0.7779   0.7478 0.4170 0.10057 0.1652 0.10989
+       132 0.7846 0.6696 0.7779   0.7478 0.4170 0.10057 0.1652 0.10989
+ AccuracySD KappaSD Selected
+    0.07066  0.2617         
+    0.08671  0.2829         
+    0.08625  0.2690         
+    0.09111  0.2633         
+    0.07383  0.2043         
+    0.06849  0.1733         
+    0.06522  0.1667        *
+    0.06775  0.1702         
+    0.06406  0.1631         
+    0.06541  0.1750         
+    0.06900  0.1806         
+    0.07172  0.1767         
+    0.07361  0.1815         
+    0.07640  0.1907         
+    0.07496  0.1864         
+    0.07783  0.1932         
+    0.06920  0.1712         
+    0.07455  0.1774         
+    0.07537  0.1831         
+    0.07624  0.1800         
+    0.06610  0.1632         
+    0.07209  0.1740         
+    0.05611  0.1242         
+    0.06826  0.1483         
+    0.06754  0.1534         
+    0.06433  0.1383         
+    0.06896  0.1485         
+    0.06929  0.1391         
+    0.07736  0.1652         
+    0.07985  0.1716         
+    0.08330  0.1842         
+    0.08009  0.1732         
+    0.08553  0.1853         
+    0.08245  0.1841         
+    0.07897  0.1662         
+    0.09083  0.1910         
+    0.07839  0.1723         
+    0.07590  0.1653         
+    0.07576  0.1576         
+    0.08382  0.1767         
+    0.08406  0.1725         
+    0.08361  0.1763         
+    0.07799  0.1526         
+    0.08361  0.1739         
+    0.07821  0.1536         
+    0.08338  0.1619         
+    0.07202  0.1492         
+    0.07270  0.1453         
+    0.07160  0.1409         
+    0.07181  0.1454         
+    0.08167  0.1649         
+    0.07988  0.1632         
+    0.08179  0.1628         
+    0.08254  0.1655         
+    0.08433  0.1691         
+    0.09071  0.1863         
+    0.08187  0.1732         
+    0.08055  0.1652         
+    0.08032  0.1643         
+    0.08034  0.1761         
+    0.08198  0.1721         
+    0.08217  0.1736         
+    0.08674  0.1802         
+    0.08394  0.1752         
+    0.08337  0.1753         
+    0.08250  0.1718         
+    0.08250  0.1718         
+
+The top 5 variables (out of 13):
+   tau, Cortisol, VEGF, Clusterin_Apo_J, Fetuin_A
+
+> 
+> ctrl$functions <- caretFuncs
+> ctrl$functions$summary <- fiveStats
+> 
+> set.seed(721)
+> knnRFE <- rfe(training[, predVars],
++               training$Class,
++               sizes = varSeq,
++               metric = "ROC",
++               method = "knn",
++               tuneLength = 20,
++               preProc = c("center", "scale"),
++               trControl = cvCtrl,
++               rfeControl = ctrl)
+> knnRFE
+
+Recursive feature selection
+
+Outer resampling method: Cross-Validation (10 fold, repeated 5 times) 
+
+Resampling performance over subset size:
+
+ Variables    ROC     Sens   Spec Accuracy      Kappa   ROCSD  SensSD  SpecSD
+         1 0.6178 0.000000 0.9959   0.7237 -5.602e-03 0.11663 0.00000 0.01389
+         3 0.6009 0.029286 0.9784   0.7192  1.048e-02 0.12006 0.06131 0.03628
+         5 0.6269 0.005714 0.9774   0.7117 -2.056e-02 0.11197 0.02828 0.05664
+         7 0.6188 0.005357 0.9857   0.7177 -1.211e-02 0.10547 0.02657 0.03392
+         9 0.5972 0.011071 0.9679   0.7064 -2.769e-02 0.10986 0.03799 0.04561
+        11 0.5958 0.002500 0.9958   0.7245 -2.304e-03 0.08724 0.01768 0.01425
+        13 0.5905 0.000000 1.0000   0.7267  0.000e+00 0.10407 0.00000 0.00000
+        15 0.5993 0.002500 0.9857   0.7170 -1.520e-02 0.10504 0.01768 0.03943
+        17 0.5925 0.000000 0.9938   0.7222 -8.545e-03 0.10655 0.00000 0.01699
+        19 0.6119 0.000000 0.9938   0.7222 -8.210e-03 0.09387 0.00000 0.02245
+        21 0.6086 0.008571 0.9865   0.7191 -6.422e-03 0.10598 0.03427 0.03289
+        23 0.6229 0.013929 0.9804   0.7161 -8.269e-03 0.10894 0.05118 0.03584
+        25 0.6268 0.002857 0.9908   0.7207 -8.194e-03 0.10003 0.02020 0.03340
+        27 0.6166 0.002857 0.9907   0.7207 -8.587e-03 0.08304 0.02020 0.02510
+        29 0.6212 0.011071 0.9887   0.7215 -2.007e-05 0.09752 0.03799 0.02597
+        31 0.6024 0.005714 0.9927   0.7229 -2.268e-03 0.10594 0.02828 0.01819
+        33 0.6308 0.024643 0.9817   0.7200  8.220e-03 0.11974 0.06057 0.03663
+        35 0.6553 0.042500 0.9662   0.7140  1.302e-02 0.11182 0.06279 0.05772
+        37 0.6255 0.083929 0.9579   0.7188  5.281e-02 0.15108 0.11523 0.06196
+        39 0.6731 0.113214 0.9580   0.7269  8.856e-02 0.13621 0.13091 0.05072
+        41 0.6502 0.112500 0.9744   0.7387  1.122e-01 0.14455 0.10618 0.03766
+        43 0.6701 0.121071 0.9589   0.7299  9.989e-02 0.12153 0.12597 0.04402
+        45 0.6622 0.123214 0.9467   0.7216  8.553e-02 0.13471 0.13384 0.05635
+        47 0.6936 0.162143 0.9467   0.7315  1.313e-01 0.10972 0.14184 0.05513
+        49 0.6876 0.146429 0.9488   0.7292  1.136e-01 0.12392 0.15114 0.05713
+        51 0.6961 0.213214 0.9353   0.7374  1.769e-01 0.12336 0.14701 0.06589
+        53 0.6871 0.179286 0.9383   0.7307  1.418e-01 0.12857 0.13902 0.06652
+        55 0.7066 0.177857 0.9557   0.7426  1.627e-01 0.11592 0.14556 0.05288
+        57 0.7180 0.213929 0.9331   0.7366  1.733e-01 0.10030 0.16908 0.07381
+        59 0.7188 0.208571 0.9518   0.7481  1.961e-01 0.12320 0.13890 0.05284
+        61 0.7203 0.206786 0.9545   0.7500  1.955e-01 0.13079 0.16556 0.05492
+        63 0.6721 0.190000 0.9495   0.7420  1.703e-01 0.15509 0.14684 0.05587
+        65 0.7061 0.160000 0.9428   0.7285  1.262e-01 0.13621 0.14019 0.07065
+        67 0.6881 0.142143 0.9476   0.7274  1.053e-01 0.13185 0.15894 0.05840
+        69 0.6957 0.192857 0.9341   0.7314  1.504e-01 0.14071 0.16533 0.07596
+        71 0.7100 0.207500 0.9405   0.7402  1.767e-01 0.11118 0.15255 0.06040
+        73 0.7270 0.289643 0.9188   0.7471  2.429e-01 0.11835 0.15743 0.06995
+        75 0.7113 0.202143 0.9443   0.7417  1.785e-01 0.13875 0.14356 0.06235
+        77 0.7079 0.186786 0.9466   0.7392  1.635e-01 0.13740 0.14445 0.05450
+        79 0.7051 0.219286 0.9404   0.7434  1.929e-01 0.12670 0.13719 0.05508
+        81 0.7327 0.193571 0.9473   0.7408  1.706e-01 0.10913 0.14549 0.05519
+        83 0.7434 0.236786 0.9475   0.7531  2.228e-01 0.10181 0.14747 0.06014
+        85 0.7507 0.205357 0.9518   0.7477  1.941e-01 0.09901 0.12959 0.05463
+        87 0.7421 0.263214 0.9544   0.7658  2.633e-01 0.11988 0.14813 0.04871
+        89 0.7538 0.295714 0.9392   0.7635  2.737e-01 0.09874 0.16868 0.05269
+        91 0.7448 0.288571 0.9301   0.7547  2.548e-01 0.09487 0.16372 0.05735
+        93 0.7620 0.258929 0.9392   0.7529  2.324e-01 0.08860 0.16212 0.04749
+        95 0.7527 0.283929 0.9310   0.7539  2.498e-01 0.10242 0.16332 0.05439
+        97 0.7374 0.268571 0.9287   0.7484  2.308e-01 0.13359 0.15709 0.05415
+        99 0.7468 0.278571 0.9309   0.7524  2.429e-01 0.10968 0.17245 0.05255
+       101 0.7543 0.275000 0.9320   0.7525  2.437e-01 0.07189 0.14778 0.05332
+       103 0.7109 0.248929 0.9373   0.7488  2.205e-01 0.15559 0.14815 0.04762
+       105 0.7392 0.240714 0.9509   0.7569  2.318e-01 0.13055 0.14310 0.04667
+       107 0.7480 0.248929 0.9465   0.7560  2.357e-01 0.10759 0.13942 0.05151
+       109 0.7363 0.272500 0.9404   0.7577  2.529e-01 0.13555 0.15537 0.05710
+       111 0.7526 0.244286 0.9476   0.7554  2.310e-01 0.11902 0.15115 0.05752
+       113 0.7680 0.243571 0.9619   0.7656  2.501e-01 0.10033 0.14693 0.04269
+       115 0.7768 0.233571 0.9630   0.7636  2.392e-01 0.08003 0.15445 0.03748
+       117 0.7595 0.247500 0.9567   0.7629  2.451e-01 0.09011 0.16473 0.04713
+       119 0.7711 0.265000 0.9503   0.7626  2.580e-01 0.07799 0.14981 0.05354
+       121 0.7444 0.272500 0.9411   0.7581  2.548e-01 0.13566 0.14560 0.05929
+       123 0.7498 0.271071 0.9497   0.7642  2.631e-01 0.11477 0.16668 0.06257
+       125 0.7700 0.320000 0.9436   0.7728  3.114e-01 0.11731 0.14280 0.05733
+       127 0.7708 0.401429 0.9568   0.8049  4.147e-01 0.14293 0.15997 0.04218
+       129 0.7981 0.391786 0.9457   0.7938  3.881e-01 0.08693 0.16776 0.05822
+       131 0.7750 0.415357 0.9487   0.8029  4.163e-01 0.10736 0.17203 0.05237
+       132 0.7801 0.394643 0.9527   0.7997  4.013e-01 0.10315 0.16698 0.05166
+ AccuracySD KappaSD Selected
+    0.01464 0.01919         
+    0.03446 0.09362         
+    0.04063 0.05966         
+    0.02203 0.03240         
+    0.03203 0.05677         
+    0.01794 0.03121         
+    0.01339 0.00000         
+    0.02737 0.03847         
+    0.01634 0.02338         
+    0.01958 0.02944         
+    0.02512 0.04797         
+    0.02449 0.05907         
+    0.02182 0.02630         
+    0.02384 0.03700         
+    0.02486 0.06233         
+    0.01865 0.04089         
+    0.02545 0.07869         
+    0.03991 0.08887         
+    0.04636 0.14523         
+    0.04714 0.16043         
+    0.03563 0.13225         
+    0.04674 0.16102         
+    0.04854 0.16167         
+    0.04256 0.15022         
+    0.04011 0.14868         
+    0.04522 0.14318         
+    0.04469 0.13776         
+    0.04007 0.14822         
+    0.05821 0.18339         
+    0.04737 0.15766         
+    0.05760 0.19346         
+    0.05464 0.17964         
+    0.05542 0.16457         
+    0.04225 0.16021         
+    0.05754 0.17726         
+    0.04480 0.15597         
+    0.06312 0.18728         
+    0.05097 0.16405         
+    0.05744 0.18477         
+    0.05010 0.16503         
+    0.05050 0.17073         
+    0.04993 0.16374         
+    0.04705 0.15472         
+    0.05413 0.17674         
+    0.05254 0.18341         
+    0.05776 0.18302         
+    0.04628 0.16544         
+    0.05062 0.16531         
+    0.05552 0.17630         
+    0.05803 0.18877         
+    0.05302 0.16703         
+    0.04663 0.15794         
+    0.04867 0.17213         
+    0.04881 0.16346         
+    0.05674 0.18008         
+    0.05256 0.16713         
+    0.04306 0.16389         
+    0.04436 0.16605         
+    0.04938 0.17961         
+    0.04626 0.15786         
+    0.05313 0.16384         
+    0.05629 0.18490         
+    0.05383 0.16073         
+    0.05100 0.16987         
+    0.06248 0.18881        *
+    0.06109 0.18968         
+    0.05634 0.17604         
+
+The top 5 variables (out of 129):
+   Ab_42, tau, p_tau, MMP10, MIF
+
+> 
+> ## Each of these models can be evaluate using the plot() function to see
+> ## the profile across subset sizes.
+> 
+> ## Test set ROC results:
+> rfROCfull <- roc(testing$Class,
++                  predict(rfFull, testing[,predVars], type = "prob")[,1])
+> rfROCfull
+
+Call:
+roc.default(response = testing$Class, predictor = predict(rfFull,     testing[, predVars], type = "prob")[, 1])
+
+Data: predict(rfFull, testing[, predVars], type = "prob")[, 1] in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.9034
+> rfROCrfe <- roc(testing$Class,
++                 predict(rfRFE, testing[,predVars])$Impaired)
+> rfROCrfe
+
+Call:
+roc.default(response = testing$Class, predictor = predict(rfRFE,     testing[, predVars])$Impaired)
+
+Data: predict(rfRFE, testing[, predVars])$Impaired in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.8814
+> 
+> ldaROCfull <- roc(testing$Class,
++                   predict(ldaFull, testing[,predVars], type = "prob")[,1])
+> ldaROCfull
+
+Call:
+roc.default(response = testing$Class, predictor = predict(ldaFull,     testing[, predVars], type = "prob")[, 1])
+
+Data: predict(ldaFull, testing[, predVars], type = "prob")[, 1] in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.8981
+> ldaROCrfe <- roc(testing$Class,
++                  predict(ldaRFE, testing[,predVars])$Impaired)
+> ldaROCrfe
+
+Call:
+roc.default(response = testing$Class, predictor = predict(ldaRFE,     testing[, predVars])$Impaired)
+
+Data: predict(ldaRFE, testing[, predVars])$Impaired in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.9259
+> 
+> nbROCfull <- roc(testing$Class,
++                   predict(nbFull, testing[,predVars], type = "prob")[,1])
+There were 50 or more warnings (use warnings() to see the first 50)
+> nbROCfull
+
+Call:
+roc.default(response = testing$Class, predictor = predict(nbFull,     testing[, predVars], type = "prob")[, 1])
+
+Data: predict(nbFull, testing[, predVars], type = "prob")[, 1] in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.8287
+> nbROCrfe <- roc(testing$Class,
++                  predict(nbRFE, testing[,predVars])$Impaired)
+Warning message:
+In FUN(1:66[[66L]], ...) :
+  Numerical 0 probability for all classes with observation 22
+> nbROCrfe
+
+Call:
+roc.default(response = testing$Class, predictor = predict(nbRFE,     testing[, predVars])$Impaired)
+
+Data: predict(nbRFE, testing[, predVars])$Impaired in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.8565
+> 
+> svmROCfull <- roc(testing$Class,
++                   predict(svmFull, testing[,predVars], type = "prob")[,1])
+> svmROCfull
+
+Call:
+roc.default(response = testing$Class, predictor = predict(svmFull,     testing[, predVars], type = "prob")[, 1])
+
+Data: predict(svmFull, testing[, predVars], type = "prob")[, 1] in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.8669
+> svmROCrfe <- roc(testing$Class,
++                  predict(svmRFE, testing[,predVars])$Impaired)
+> svmROCrfe
+
+Call:
+roc.default(response = testing$Class, predictor = predict(svmRFE,     testing[, predVars])$Impaired)
+
+Data: predict(svmRFE, testing[, predVars])$Impaired in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.8657
+> 
+> lrROCfull <- roc(testing$Class,
++                   predict(lrFull, testing[,predVars], type = "prob")[,1])
+> lrROCfull
+
+Call:
+roc.default(response = testing$Class, predictor = predict(lrFull,     testing[, predVars], type = "prob")[, 1])
+
+Data: predict(lrFull, testing[, predVars], type = "prob")[, 1] in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.8513
+> lrROCrfe <- roc(testing$Class,
++                  predict(lrRFE, testing[,predVars])$Impaired)
+> lrROCrfe
+
+Call:
+roc.default(response = testing$Class, predictor = predict(lrRFE,     testing[, predVars])$Impaired)
+
+Data: predict(lrRFE, testing[, predVars])$Impaired in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.89
+> 
+> knnROCfull <- roc(testing$Class,
++                   predict(knnFull, testing[,predVars], type = "prob")[,1])
+> knnROCfull
+
+Call:
+roc.default(response = testing$Class, predictor = predict(knnFull,     testing[, predVars], type = "prob")[, 1])
+
+Data: predict(knnFull, testing[, predVars], type = "prob")[, 1] in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.8762
+> knnROCrfe <- roc(testing$Class,
++                  predict(knnRFE, testing[,predVars])$Impaired)
+> knnROCrfe
+
+Call:
+roc.default(response = testing$Class, predictor = predict(knnRFE,     testing[, predVars])$Impaired)
+
+Data: predict(knnRFE, testing[, predVars])$Impaired in 18 controls (testing$Class Impaired) > 48 cases (testing$Class Control).
+Area under the curve: 0.8391
+> 
+> 
+> ## For filter methods, the sbf() function (named for Selection By Filter) is
+> ## used. It has similar arguments to rfe() to control the model fitting and
+> ## filtering methods. 
+> 
+> ## P-values are created for filtering. 
+> 
+> ## A set of four LDA models are fit based on two factors: p-value adjustment 
+> ## using a Bonferroni adjustment and whether the predictors should be 
+> ## pre-screened for high correlations. 
+> 
+> sbfResamp <- function(x, fun = mean)
++ {
++   x <- unlist(lapply(x$variables, length))
++   fun(x)
++ }
+> sbfROC <- function(mod) auc(roc(testing$Class, predict(mod, testing)$Impaired))
+> 
+> ## This function calculates p-values using either a t-test (when the predictor
+> ## has 2+ distinct values) or using Fisher's Exact Test otherwise.
+> 
+> pScore <- function(x, y)
++   {
++     numX <- length(unique(x))
++     if(numX > 2)
++       {
++        out <- t.test(x ~ y)$p.value
++       } else {
++        out <- fisher.test(factor(x), y)$p.value
++       }
++     out
++   }
+> ldaWithPvalues <- ldaSBF
+> ldaWithPvalues$score <- pScore
+> ldaWithPvalues$summary <- fiveStats
+> 
+> ## Predictors are retained if their p-value is less than the completely 
+> ## subjective cut-off of 0.05.
+> 
+> ldaWithPvalues$filter <- function (score, x, y)
++ {
++   keepers <- score <= 0.05
++   keepers
++ }
+> 
+> sbfCtrl <- sbfControl(method = "repeatedcv",
++                       repeats = 5,
++                       verbose = TRUE,
++                       functions = ldaWithPvalues,
++                       index = index)
+> 
+> rawCorr <- sbf(training[, predVars],
++                training$Class,
++                tol = 1.0e-12,
++                sbfControl = sbfCtrl)
+> rawCorr
+
+Selection By Filter
+
+Outer resampling method: Cross-Validation (10 fold, repeated 5 times) 
+
+Resampling performance:
+
+    ROC   Sens   Spec Accuracy  Kappa   ROCSD SensSD  SpecSD AccuracySD KappaSD
+ 0.9168 0.7439 0.9136    0.867 0.6588 0.06458 0.1778 0.05973     0.0567  0.1512
+
+Using the training set, 47 variables were selected:
+   Alpha_1_Antitrypsin, Apolipoprotein_D, B_Lymphocyte_Chemoattractant_BL, Complement_3, Cortisol...
+
+During resampling, the top 5 selected variables (out of a possible 66):
+   Ab_42 (100%), age (100%), Cortisol (100%), Creatine_Kinase_MB (100%), Cystatin_C (100%)
+
+On average, 46.1 variables were selected (min = 38, max = 57)
+> 
+> ldaWithPvalues$filter <- function (score, x, y)
++ {
++   score <- p.adjust(score,  "bonferroni")
++   keepers <- score <= 0.05
++   keepers
++ }
+> sbfCtrl <- sbfControl(method = "repeatedcv",
++                       repeats = 5,
++                       verbose = TRUE,
++                       functions = ldaWithPvalues,
++                       index = index)
+> 
+> adjCorr <- sbf(training[, predVars],
++                training$Class,
++                tol = 1.0e-12,
++                sbfControl = sbfCtrl)
+> adjCorr
+
+Selection By Filter
+
+Outer resampling method: Cross-Validation (10 fold, repeated 5 times) 
+
+Resampling performance:
+
+    ROC   Sens   Spec Accuracy  Kappa   ROCSD SensSD  SpecSD AccuracySD KappaSD
+ 0.8563 0.6443 0.9083   0.8361 0.5663 0.07646  0.201 0.06721    0.06283  0.1778
+
+Using the training set, 17 variables were selected:
+   Creatine_Kinase_MB, Eotaxin_3, FAS, GRO_alpha, IGF_BP_2...
+
+During resampling, the top 5 selected variables (out of a possible 23):
+   Ab_42 (100%), GRO_alpha (100%), MIF (100%), p_tau (100%), tau (100%)
+
+On average, 13.5 variables were selected (min = 9, max = 19)
+> 
+> ldaWithPvalues$filter <- function (score, x, y)
++ {
++   keepers <- score <= 0.05
++   corrMat <- cor(x[,keepers])
++   tooHigh <- findCorrelation(corrMat, .75)
++   if(length(tooHigh) > 0) keepers[tooHigh] <- FALSE
++   keepers
++ }
+> sbfCtrl <- sbfControl(method = "repeatedcv",
++                       repeats = 5,
++                       verbose = TRUE,
++                       functions = ldaWithPvalues,
++                       index = index)
+> 
+> rawNoCorr <- sbf(training[, predVars],
++                  training$Class,
++                  tol = 1.0e-12,
++                  sbfControl = sbfCtrl)
+> rawNoCorr
+
+Selection By Filter
+
+Outer resampling method: Cross-Validation (10 fold, repeated 5 times) 
+
+Resampling performance:
+
+   ROC   Sens   Spec Accuracy  Kappa   ROCSD SensSD  SpecSD AccuracySD KappaSD
+ 0.918 0.7357 0.9125   0.8638 0.6508 0.06282 0.1787 0.06498    0.05687  0.1474
+
+Using the training set, 45 variables were selected:
+   Alpha_1_Antitrypsin, Apolipoprotein_D, B_Lymphocyte_Chemoattractant_BL, Complement_3, Cortisol...
+
+During resampling, the top 5 selected variables (out of a possible 66):
+   Ab_42 (100%), age (100%), E4 (100%), IGF_BP_2 (100%), IL_17E (100%)
+
+On average, 44.3 variables were selected (min = 37, max = 54)
+> 
+> ldaWithPvalues$filter <- function (score, x, y)
++ {
++   score <- p.adjust(score,  "bonferroni")
++   keepers <- score <= 0.05
++   corrMat <- cor(x[,keepers])
++   tooHigh <- findCorrelation(corrMat, .75)
++   if(length(tooHigh) > 0) keepers[tooHigh] <- FALSE
++   keepers
++ }
+> sbfCtrl <- sbfControl(method = "repeatedcv",
++                       repeats = 5,
++                       verbose = TRUE,
++                       functions = ldaWithPvalues,
++                       index = index)
+> 
+> adjNoCorr <- sbf(training[, predVars],
++                  training$Class,
++                  tol = 1.0e-12,
++                  sbfControl = sbfCtrl)
+> adjNoCorr
+
+Selection By Filter
+
+Outer resampling method: Cross-Validation (10 fold, repeated 5 times) 
+
+Resampling performance:
+
+    ROC   Sens   Spec Accuracy  Kappa   ROCSD SensSD  SpecSD AccuracySD KappaSD
+ 0.8563 0.6443 0.9083   0.8361 0.5663 0.07646  0.201 0.06721    0.06283  0.1778
+
+Using the training set, 17 variables were selected:
+   Creatine_Kinase_MB, Eotaxin_3, FAS, GRO_alpha, IGF_BP_2...
+
+During resampling, the top 5 selected variables (out of a possible 23):
+   Ab_42 (100%), GRO_alpha (100%), MIF (100%), p_tau (100%), tau (100%)
+
+On average, 13.5 variables were selected (min = 9, max = 19)
+> 
+> ## Filter methods test set ROC results:
+> 
+> sbfROC(rawCorr)
+Area under the curve: 0.9178
+> sbfROC(rawNoCorr)
+Area under the curve: 0.9155
+> sbfROC(adjCorr)
+Area under the curve: 0.9259
+> sbfROC(adjNoCorr)
+Area under the curve: 0.9259
+> 
+> ## Get the resampling results for all the models
+> 
+> rfeResamples <- resamples(list(RF = rfRFE,
++                                "Logistic Reg." = lrRFE,
++                                "SVM" = svmRFE,
++                                "$K$--NN" = knnRFE,
++                                "N. Bayes" = nbRFE,
++                                "LDA" = ldaRFE))
+> summary(rfeResamples)
+
+Call:
+summary.resamples(object = rfeResamples)
+
+
+Call:
+summary.resamples(object = rfeResamples)
+
+Models: RF, Logistic Reg., SVM, $K$--NN, N. Bayes, LDA 
+Number of resamples: 50 
+
+ROC 
+                Min. 1st Qu. Median   Mean 3rd Qu.   Max. NA's
+RF            0.6571  0.8506 0.9145 0.8990  0.9530 1.0000    0
+Logistic Reg. 0.6429  0.7984 0.8571 0.8571  0.9370 1.0000    0
+SVM           0.7000  0.8459 0.8914 0.8919  0.9605 1.0000    0
+$K$--NN       0.6283  0.7304 0.8026 0.7981  0.8797 0.9436    0
+N. Bayes      0.6357  0.7759 0.8346 0.8318  0.8797 0.9925    0
+LDA           0.7429  0.8716 0.9312 0.9163  0.9783 1.0000    0
+
+Sens 
+                Min. 1st Qu. Median   Mean 3rd Qu.   Max. NA's
+RF            0.2500  0.5714 0.7143 0.6996  0.8571 1.0000    0
+Logistic Reg. 0.3750  0.5714 0.6250 0.6536  0.7411 1.0000    0
+SVM           0.2857  0.5714 0.7143 0.6689  0.7500 1.0000    0
+$K$--NN       0.1250  0.2857 0.4286 0.3918  0.5536 0.7143    0
+N. Bayes      0.2857  0.5714 0.7143 0.6807  0.7500 1.0000    0
+LDA           0.2500  0.6250 0.7143 0.7407  0.8571 1.0000    0
+
+Spec 
+                Min. 1st Qu. Median   Mean 3rd Qu. Max. NA's
+RF            0.8000  0.9474 0.9500 0.9609  1.0000    1    0
+Logistic Reg. 0.7000  0.8500 0.9000 0.9053  0.9474    1    0
+SVM           0.8421  0.9474 0.9500 0.9569  1.0000    1    0
+$K$--NN       0.7000  0.9000 0.9474 0.9457  1.0000    1    0
+N. Bayes      0.6500  0.8000 0.8421 0.8387  0.8947    1    0
+LDA           0.7895  0.8947 0.9000 0.9217  0.9500    1    0
+
+Accuracy 
+                Min. 1st Qu. Median   Mean 3rd Qu.   Max. NA's
+RF            0.7407  0.8476 0.8889 0.8892  0.9259 1.0000    0
+Logistic Reg. 0.6667  0.7912 0.8462 0.8361  0.8777 0.9630    0
+SVM           0.7778  0.8462 0.8846 0.8782  0.9231 1.0000    0
+$K$--NN       0.6071  0.7431 0.7817 0.7938  0.8462 0.9231    0
+N. Bayes      0.6538  0.7500 0.7778 0.7950  0.8462 0.9630    0
+LDA           0.7407  0.8276 0.8846 0.8721  0.9231 1.0000    0
+
+Kappa 
+                 Min. 1st Qu. Median   Mean 3rd Qu.   Max. NA's
+RF            0.21580  0.5788 0.7027 0.6959  0.8045 1.0000    0
+Logistic Reg. 0.23820  0.4717 0.5702 0.5732  0.6676 0.9078    0
+SVM           0.36220  0.5418 0.6929 0.6663  0.7851 1.0000    0
+$K$--NN       0.04587  0.2837 0.3705 0.3881  0.5255 0.7851    0
+N. Bayes      0.21800  0.3999 0.4957 0.5000  0.6370 0.9143    0
+LDA           0.28950  0.5519 0.6808 0.6678  0.7851 1.0000    0
+
+> 
+> fullResamples <- resamples(list(RF = rfFull,
++                                 "Logistic Reg." = lrFull,
++                                 "SVM" = svmFull,
++                                 "$K$--NN" = knnFull,
++                                 "N. Bayes" = nbFull,
++                                 "LDA" = ldaFull))
+> summary(fullResamples)
+
+Call:
+summary.resamples(object = fullResamples)
+
+
+Call:
+summary.resamples(object = fullResamples)
+
+Models: RF, Logistic Reg., SVM, $K$--NN, N. Bayes, LDA 
+Number of resamples: 50 
+
+ROC 
+                Min. 1st Qu. Median   Mean 3rd Qu.   Max. NA's
+RF            0.7036  0.8387 0.9000 0.8898  0.9423 1.0000    0
+Logistic Reg. 0.5214  0.7240 0.7951 0.7846  0.8612 0.9464    0
+SVM           0.7000  0.8441 0.8938 0.8891  0.9549 1.0000    0
+$K$--NN       0.7030  0.8047 0.8536 0.8494  0.9011 0.9737    0
+N. Bayes      0.5263  0.7237 0.8036 0.7980  0.8690 1.0000    0
+LDA           0.5357  0.7864 0.8571 0.8439  0.9059 0.9850    0
+
+Sens 
+                Min. 1st Qu. Median   Mean 3rd Qu.   Max. NA's
+RF            0.1250  0.2857 0.4286 0.4382  0.5714 0.7143    0
+Logistic Reg. 0.1429  0.5714 0.7143 0.6696  0.7143 1.0000    0
+SVM           0.2857  0.5714 0.6250 0.6446  0.7143 1.0000    0
+$K$--NN       0.0000  0.1295 0.1429 0.1957  0.2857 0.4286    0
+N. Bayes      0.2500  0.4464 0.5714 0.5936  0.7143 0.8750    0
+LDA           0.2500  0.5714 0.7143 0.6857  0.8304 1.0000    0
+
+Spec 
+                Min. 1st Qu. Median   Mean 3rd Qu. Max. NA's
+RF            0.9000  0.9500 1.0000 0.9836  1.0000    1    0
+Logistic Reg. 0.4737  0.7368 0.7895 0.7779  0.8500    1    0
+SVM           0.8421  0.9000 0.9487 0.9507  1.0000    1    0
+$K$--NN       0.9474  1.0000 1.0000 0.9907  1.0000    1    0
+N. Bayes      0.6316  0.7500 0.8000 0.8139  0.8947    1    0
+LDA           0.6842  0.7500 0.8421 0.8294  0.8947    1    0
+
+Accuracy 
+                Min. 1st Qu. Median   Mean 3rd Qu.   Max. NA's
+RF            0.7308  0.8095 0.8462 0.8344  0.8571 0.8889    0
+Logistic Reg. 0.5185  0.6952 0.7692 0.7478  0.8077 0.8889    0
+SVM           0.7407  0.8214 0.8519 0.8670  0.9231 1.0000    0
+$K$--NN       0.6923  0.7500 0.7692 0.7731  0.8022 0.8519    0
+N. Bayes      0.5714  0.7037 0.7692 0.7530  0.8077 0.8889    0
+LDA           0.6667  0.7500 0.7778 0.7900  0.8462 0.9259    0
+
+Kappa 
+                  Min. 1st Qu. Median   Mean 3rd Qu.   Max. NA's
+RF             0.11650  0.3721 0.5229 0.4941  0.6133 0.7011    0
+Logistic Reg. -0.19800  0.3292 0.4336 0.4170  0.5098 0.7417    0
+SVM            0.21580  0.5278 0.6170 0.6354  0.7851 1.0000    0
+$K$--NN       -0.07216  0.1695 0.1980 0.2417  0.3573 0.5263    0
+N. Bayes       0.02326  0.2863 0.4075 0.3966  0.5092 0.7235    0
+LDA            0.10330  0.3741 0.4757 0.4910  0.6089 0.8224    0
+
+> 
+> filteredResamples <- resamples(list("No Adjustment, Corr Vars" = rawCorr,
++                                     "No Adjustment, No Corr Vars" = rawNoCorr,
++                                     "Bonferroni, Corr Vars" = adjCorr,
++                                     "Bonferroni, No Corr Vars" = adjNoCorr))
+> summary(filteredResamples)
+
+Call:
+summary.resamples(object = filteredResamples)
+
+
+Call:
+summary.resamples(object = filteredResamples)
+
+Models: No Adjustment, Corr Vars, No Adjustment, No Corr Vars, Bonferroni, Corr Vars, Bonferroni, No Corr Vars 
+Number of resamples: 50 
+
+ROC 
+                              Min. 1st Qu. Median   Mean 3rd Qu. Max. NA's
+No Adjustment, Corr Vars    0.7714  0.8647 0.9281 0.9168  0.9768    1    0
+No Adjustment, No Corr Vars 0.7786  0.8816 0.9263 0.9180  0.9759    1    0
+Bonferroni, Corr Vars       0.6643  0.8239 0.8531 0.8563  0.8970    1    0
+Bonferroni, No Corr Vars    0.6643  0.8239 0.8531 0.8563  0.8970    1    0
+
+Sens 
+                              Min. 1st Qu. Median   Mean 3rd Qu. Max. NA's
+No Adjustment, Corr Vars    0.2500  0.5848 0.7321 0.7439  0.8571    1    0
+No Adjustment, No Corr Vars 0.3750  0.5714 0.7143 0.7357  0.8571    1    0
+Bonferroni, Corr Vars       0.2857  0.5000 0.6250 0.6443  0.7500    1    0
+Bonferroni, No Corr Vars    0.2857  0.5000 0.6250 0.6443  0.7500    1    0
+
+Spec 
+                              Min. 1st Qu. Median   Mean 3rd Qu. Max. NA's
+No Adjustment, Corr Vars    0.7895  0.8947    0.9 0.9136    0.95    1    0
+No Adjustment, No Corr Vars 0.7500  0.8500    0.9 0.9125    0.95    1    0
+Bonferroni, Corr Vars       0.7368  0.8500    0.9 0.9083    0.95    1    0
+Bonferroni, No Corr Vars    0.7368  0.8500    0.9 0.9083    0.95    1    0
+
+Accuracy 
+                              Min. 1st Qu. Median   Mean 3rd Qu. Max. NA's
+No Adjustment, Corr Vars    0.7407  0.8462 0.8571 0.8670  0.8919    1    0
+No Adjustment, No Corr Vars 0.7407  0.8226 0.8519 0.8638  0.8889    1    0
+Bonferroni, Corr Vars       0.7037  0.7778 0.8462 0.8361  0.8846    1    0
+Bonferroni, No Corr Vars    0.7037  0.7778 0.8462 0.8361  0.8846    1    0
+
+Kappa 
+                              Min. 1st Qu. Median   Mean 3rd Qu. Max. NA's
+No Adjustment, Corr Vars    0.3193  0.5705 0.6609 0.6588  0.7390    1    0
+No Adjustment, No Corr Vars 0.3549  0.5702 0.6414 0.6508  0.7381    1    0
+Bonferroni, Corr Vars       0.2087  0.4343 0.5766 0.5663  0.6957    1    0
+Bonferroni, No Corr Vars    0.2087  0.4343 0.5766 0.5663  0.6957    1    0
+
+> 
+> sessionInfo()
+R version 3.0.0 RC (2013-03-27 r62426)
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+ [1] klaR_0.6-7                       kernlab_0.9-16                  
+ [3] randomForest_4.6-7               e1071_1.6-1                     
+ [5] class_7.3-7                      pROC_1.5.4                      
+ [7] corrplot_0.71                    RColorBrewer_1.0-5              
+ [9] doMC_1.3.0                       iterators_1.0.6                 
+[11] caret_5.16-04                    lattice_0.20-15                 
+[13] foreach_1.4.0                    AppliedPredictiveModeling_1.01-1
+[15] reshape2_1.2.2                   plyr_1.8                        
+[17] MASS_7.3-26                      CORElearn_0.9.41                
+[19] rpart_4.1-1                      cluster_1.14.4                  
+
+loaded via a namespace (and not attached):
+[1] codetools_0.2-8 compiler_3.0.0  grid_3.0.0      stringr_0.6.2  
+[5] tools_3.0.0    
+> 
+> 
+> 
+> proc.time()
+      user     system    elapsed 
+269428.317   7238.182  37026.185 

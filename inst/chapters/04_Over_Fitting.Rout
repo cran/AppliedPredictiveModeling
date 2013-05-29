@@ -1,0 +1,474 @@
+
+R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+Copyright (C) 2013 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################################################
+> ### R code from Applied Predictive Modeling (2013) by Kuhn and Johnson.
+> ### Copyright 2013 Kuhn and Johnson
+> ### Web Page: http://www.appliedpredictivemodeling.com
+> ### Contact: Max Kuhn (mxkuhn@gmail.com)
+> ###
+> ### Chapter 4: Over-Fitting and Model Tuning
+> ###
+> ### Required packages: caret, doMC (optional), kernlab
+> ###
+> ### Data used: 
+> ###
+> ### Notes: 
+> ### 1) This code is provided without warranty.
+> ###
+> ### 2) This code should help the user reproduce the results in the
+> ### text. There will be differences between this code and what is is
+> ### the computing section. For example, the computing sections show
+> ### how the source functions work (e.g. randomForest() or plsr()),
+> ### which were not directly used when creating the book. Also, there may be 
+> ### syntax differences that occur over time as packages evolve. These files 
+> ### will reflect those changes.
+> ###
+> ### 3) In some cases, the calculations in the book were run in 
+> ### parallel. The sub-processes may reset the random number seed.
+> ### Your results may slightly vary.
+> ###
+> ################################################################################
+> 
+> ################################################################################
+> ### Section 4.6 Choosing Final Tuning Parameters
+> 
+> library(caret)
+Loading required package: cluster
+Loading required package: foreach
+Loading required package: lattice
+Loading required package: plyr
+Loading required package: reshape2
+> data(GermanCredit)
+> 
+> ## First, remove near-zero variance predictors then get rid of a few predictors 
+> ## that duplicate values. For example, there are two possible values for the 
+> ## housing variable: "Rent", "Own" and "ForFree". So that we don't have linear
+> ## dependencies, we get rid of one of the levels (e.g. "ForFree")
+> 
+> GermanCredit <- GermanCredit[, -nearZeroVar(GermanCredit)]
+> GermanCredit$CheckingAccountStatus.lt.0 <- NULL
+> GermanCredit$SavingsAccountBonds.lt.100 <- NULL
+> GermanCredit$EmploymentDuration.lt.1 <- NULL
+> GermanCredit$EmploymentDuration.Unemployed <- NULL
+> GermanCredit$Personal.Male.Married.Widowed <- NULL
+> GermanCredit$Property.Unknown <- NULL
+> GermanCredit$Housing.ForFree <- NULL
+> 
+> ## Split the data into training (80%) and test sets (20%)
+> set.seed(100)
+> inTrain <- createDataPartition(GermanCredit$Class, p = .8)[[1]]
+> GermanCreditTrain <- GermanCredit[ inTrain, ]
+> GermanCreditTest  <- GermanCredit[-inTrain, ]
+> 
+> ## The model fitting code shown in the computing section is fairly
+> ## simplistic.  For the text we estimate the tuning parameter grid
+> ## up-front and pass it in explicitly. This generally is not needed,
+> ## but was used here so that we could trim the cost values to a
+> ## presentable range and to re-use later with different resampling
+> ## methods.
+> 
+> library(kernlab)
+> set.seed(231)
+> sigDist <- sigest(Class ~ ., data = GermanCreditTrain, frac = 1)
+> svmTuneGrid <- data.frame(.sigma = sigDist[1], .C = 2^(-2:7))
+Warning message:
+In data.frame(.sigma = sigDist[1], .C = 2^(-2:7)) :
+  row names were found from a short variable and have been discarded
+> 
+> ### Optional: parallel processing can be used via the 'do' packages,
+> ### such as doMC, doMPI etc. We used doMC (not on Windows) to speed
+> ### up the computations.
+> 
+> ### WARNING: Be aware of how much memory is needed to parallel
+> ### process. It can very quickly overwhelm the available hardware. We
+> ### estimate the memory usage (VSIZE = total memory size) to be 
+> ### 2566M/core.
+> 
+> library(doMC)
+Loading required package: iterators
+Loading required package: parallel
+> registerDoMC(4)
+> 
+> set.seed(1056)
+> svmFit <- train(Class ~ .,
++                 data = GermanCreditTrain,
++                 method = "svmRadial",
++                 preProc = c("center", "scale"),
++                 tuneGrid = svmTuneGrid,
++                 trControl = trainControl(method = "repeatedcv", repeats = 5))
+Loading required package: class
+> 
+> ## Print the results
+> svmFit
+800 samples
+ 41 predictors
+  2 classes: 'Bad', 'Good' 
+
+Pre-processing: centered, scaled 
+Resampling: Cross-Validation (10 fold, repeated 5 times) 
+
+Summary of sample sizes: 720, 720, 720, 720, 720, 720, ... 
+
+Resampling results across tuning parameters:
+
+  C     Accuracy  Kappa   Accuracy SD  Kappa SD
+  0.25  0.7       0       0            0       
+  0.5   0.713     0.0769  0.0176       0.0641  
+  1     0.74      0.27    0.0369       0.103   
+  2     0.745     0.331   0.0504       0.128   
+  4     0.741     0.339   0.0509       0.127   
+  8     0.75      0.378   0.0501       0.122   
+  16    0.749     0.386   0.0537       0.128   
+  32    0.724     0.336   0.0519       0.12    
+  64    0.72      0.331   0.0543       0.126   
+  128   0.72      0.332   0.053        0.127   
+
+Tuning parameter 'sigma' was held constant at a value of 0.00892
+Accuracy was used to select the optimal model using  the largest value.
+The final values used for the model were C = 8 and sigma = 0.00892. 
+> 
+> ## A line plot of the average performance. The 'scales' argument is actually an 
+> ## argument to xyplot that converts the x-axis to log-2 units.
+> 
+> plot(svmFit, scales = list(x = list(log = 2)))
+> 
+> ## Test set predictions
+> 
+> predictedClasses <- predict(svmFit, GermanCreditTest)
+> str(predictedClasses)
+ Factor w/ 2 levels "Bad","Good": 1 1 2 2 1 2 2 2 1 1 ...
+> 
+> ## Use the "type" option to get class probabilities
+> 
+> predictedProbs <- predict(svmFit, newdata = GermanCreditTest, type = "prob")
+Warning message:
+In probFunction(method, modelFit, ppUnk) :
+  kernlab class probability calculations failed; returning NAs
+> head(predictedProbs)
+  Bad Good
+1  NA   NA
+2  NA   NA
+3  NA   NA
+4  NA   NA
+5  NA   NA
+6  NA   NA
+> 
+> 
+> ## Fit the same model using different resampling methods. The main syntax change
+> ## is the control object.
+> 
+> set.seed(1056)
+> svmFit10CV <- train(Class ~ .,
++                     data = GermanCreditTrain,
++                     method = "svmRadial",
++                     preProc = c("center", "scale"),
++                     tuneGrid = svmTuneGrid,
++                     trControl = trainControl(method = "cv", number = 10))
+> svmFit10CV
+800 samples
+ 41 predictors
+  2 classes: 'Bad', 'Good' 
+
+Pre-processing: centered, scaled 
+Resampling: Cross-Validation (10 fold) 
+
+Summary of sample sizes: 720, 720, 720, 720, 720, 720, ... 
+
+Resampling results across tuning parameters:
+
+  C     Accuracy  Kappa   Accuracy SD  Kappa SD
+  0.25  0.7       0       0            0       
+  0.5   0.719     0.0934  0.0189       0.0709  
+  1     0.744     0.277   0.0222       0.0795  
+  2     0.759     0.361   0.0323       0.0763  
+  4     0.755     0.368   0.0422       0.119   
+  8     0.761     0.395   0.0365       0.104   
+  16    0.766     0.419   0.0417       0.113   
+  32    0.749     0.388   0.0443       0.103   
+  64    0.729     0.349   0.0472       0.108   
+  128   0.729     0.352   0.0468       0.108   
+
+Tuning parameter 'sigma' was held constant at a value of 0.00892
+Accuracy was used to select the optimal model using  the largest value.
+The final values used for the model were C = 16 and sigma = 0.00892. 
+> 
+> set.seed(1056)
+> svmFitLOO <- train(Class ~ .,
++                    data = GermanCreditTrain,
++                    method = "svmRadial",
++                    preProc = c("center", "scale"),
++                    tuneGrid = svmTuneGrid,
++                    trControl = trainControl(method = "LOOCV"))
+> svmFitLOO
+800 samples
+ 41 predictors
+  2 classes: 'Bad', 'Good' 
+
+Pre-processing: centered, scaled 
+Resampling: Leave-One-Out Cross-Validation 
+
+Summary of sample sizes: 799, 799, 799, 799, 799, 799, ... 
+
+Resampling results across tuning parameters:
+
+  C     Accuracy  Kappa
+  0.25  0.7       0    
+  0.5   0.718     0.1  
+  1     0.749     0.305
+  2     0.74      0.316
+  4     0.749     0.358
+  8     0.761     0.407
+  16    0.761     0.417
+  32    0.722     0.335
+  64    0.716     0.327
+  128   0.72      0.333
+
+Tuning parameter 'sigma' was held constant at a value of 0.00892
+Accuracy was used to select the optimal model using  the largest value.
+The final values used for the model were C = 8 and sigma = 0.00892. 
+> 
+> set.seed(1056)
+> svmFitLGO <- train(Class ~ .,
++                    data = GermanCreditTrain,
++                    method = "svmRadial",
++                    preProc = c("center", "scale"),
++                    tuneGrid = svmTuneGrid,
++                    trControl = trainControl(method = "LGOCV", 
++                                             number = 50, 
++                                             p = .8))
+> svmFitLGO 
+800 samples
+ 41 predictors
+  2 classes: 'Bad', 'Good' 
+
+Pre-processing: centered, scaled 
+Resampling: Repeated Train/Test Splits (50 reps, 0.8%) 
+
+Summary of sample sizes: 640, 640, 640, 640, 640, 640, ... 
+
+Resampling results across tuning parameters:
+
+  C     Accuracy  Kappa   Accuracy SD  Kappa SD
+  0.25  0.7       0       0            0       
+  0.5   0.711     0.0669  0.00956      0.0388  
+  1     0.737     0.259   0.0224       0.0632  
+  2     0.741     0.318   0.0238       0.0607  
+  4     0.743     0.351   0.0281       0.068   
+  8     0.745     0.37    0.0252       0.0617  
+  16    0.738     0.365   0.0304       0.0763  
+  32    0.729     0.349   0.0296       0.0723  
+  64    0.722     0.335   0.0293       0.0713  
+  128   0.714     0.321   0.0304       0.0749  
+
+Tuning parameter 'sigma' was held constant at a value of 0.00892
+Accuracy was used to select the optimal model using  the largest value.
+The final values used for the model were C = 8 and sigma = 0.00892. 
+> 
+> set.seed(1056)
+> svmFitBoot <- train(Class ~ .,
++                     data = GermanCreditTrain,
++                     method = "svmRadial",
++                     preProc = c("center", "scale"),
++                     tuneGrid = svmTuneGrid,
++                     trControl = trainControl(method = "boot", number = 50))
+> svmFitBoot
+800 samples
+ 41 predictors
+  2 classes: 'Bad', 'Good' 
+
+Pre-processing: centered, scaled 
+Resampling: Bootstrap (50 reps) 
+
+Summary of sample sizes: 800, 800, 800, 800, 800, 800, ... 
+
+Resampling results across tuning parameters:
+
+  C     Accuracy  Kappa  Accuracy SD  Kappa SD
+  0.25  0.704     0.019  0.0264       0.0327  
+  0.5   0.728     0.186  0.0306       0.0879  
+  1     0.739     0.29   0.0245       0.0677  
+  2     0.742     0.329  0.0177       0.0504  
+  4     0.742     0.345  0.0183       0.0475  
+  8     0.741     0.354  0.0191       0.0502  
+  16    0.735     0.347  0.0192       0.045   
+  32    0.729     0.341  0.0217       0.049   
+  64    0.723     0.33   0.023        0.0509  
+  128   0.721     0.324  0.0232       0.0509  
+
+Tuning parameter 'sigma' was held constant at a value of 0.00892
+Accuracy was used to select the optimal model using  the largest value.
+The final values used for the model were C = 4 and sigma = 0.00892. 
+> 
+> set.seed(1056)
+> svmFitBoot632 <- train(Class ~ .,
++                        data = GermanCreditTrain,
++                        method = "svmRadial",
++                        preProc = c("center", "scale"),
++                        tuneGrid = svmTuneGrid,
++                        trControl = trainControl(method = "boot632", 
++                                                 number = 50))
+> svmFitBoot632
+800 samples
+ 41 predictors
+  2 classes: 'Bad', 'Good' 
+
+Pre-processing: centered, scaled 
+Resampling: Bootstrap 632 Rule (50 reps) 
+
+Summary of sample sizes: 800, 800, 800, 800, 800, 800, ... 
+
+Resampling results across tuning parameters:
+
+  C     Accuracy  Kappa  Accuracy SD  Kappa SD  AccuracyApparent  KappaApparent
+  0.25  0.703     0.012  0.0264       0.0327    0.7               0            
+  0.5   0.733     0.189  0.0306       0.0879    0.742             0.193        
+  1     0.766     0.36   0.0245       0.0677    0.811             0.479        
+  2     0.783     0.435  0.0177       0.0504    0.852             0.616        
+  4     0.798     0.488  0.0183       0.0475    0.894             0.733        
+  8     0.81      0.528  0.0191       0.0502    0.93              0.827        
+  16    0.818     0.552  0.0192       0.045     0.96              0.903        
+  32    0.823     0.569  0.0217       0.049     0.984             0.961        
+  64    0.822     0.569  0.023        0.0509    0.991             0.979        
+  128   0.823     0.571  0.0232       0.0509    0.998             0.994        
+
+Tuning parameter 'sigma' was held constant at a value of 0.00892
+Accuracy was used to select the optimal model using  the largest value.
+The final values used for the model were C = 32 and sigma = 0.00892. 
+> 
+> ################################################################################
+> ### Section 4.8 Choosing Between Models
+> 
+> set.seed(1056)
+> glmProfile <- train(Class ~ .,
++                     data = GermanCreditTrain,
++                     method = "glm",
++                     trControl = trainControl(method = "repeatedcv", 
++                                              repeats = 5))
+> glmProfile
+800 samples
+ 41 predictors
+  2 classes: 'Bad', 'Good' 
+
+No pre-processing
+Resampling: Cross-Validation (10 fold, repeated 5 times) 
+
+Summary of sample sizes: 720, 720, 720, 720, 720, 720, ... 
+
+Resampling results
+
+  Accuracy  Kappa  Accuracy SD  Kappa SD
+  0.749     0.365  0.0516       0.122   
+
+ 
+> 
+> resamp <- resamples(list(SVM = svmFit, Logistic = glmProfile))
+> summary(resamp)
+
+Call:
+summary.resamples(object = resamp)
+
+
+Call:
+summary.resamples(object = resamp)
+
+Models: SVM, Logistic 
+Number of resamples: 50 
+
+Accuracy 
+           Min. 1st Qu. Median  Mean 3rd Qu. Max. NA's
+SVM      0.6375  0.7125 0.7625 0.750  0.7844 0.85    0
+Logistic 0.6125  0.7250 0.7562 0.749  0.7844 0.85    0
+
+Kappa 
+            Min. 1st Qu. Median   Mean 3rd Qu.   Max. NA's
+SVM      0.08228  0.2901 0.3869 0.3779  0.4637 0.6053    0
+Logistic 0.07534  0.2831 0.3750 0.3648  0.4504 0.6250    0
+
+> 
+> 
+> modelDifferences <- diff(resamp)
+> summary(modelDifferences)
+
+Call:
+summary.diff.resamples(object = modelDifferences)
+
+
+Call:
+summary.diff.resamples(object = modelDifferences)
+
+p-value adjustment: bonferroni 
+Upper diagonal: estimates of the difference
+Lower diagonal: p-value for H0: difference = 0
+
+Accuracy 
+         SVM  Logistic
+SVM           0.001   
+Logistic 0.85         
+
+Kappa 
+         SVM   Logistic
+SVM            0.01313 
+Logistic 0.347         
+
+> 
+> ## The actual paired t-test:
+> modelDifferences$statistics$Accuracy
+$SVM.diff.Logistic
+
+	One Sample t-test
+
+data:  x
+t = 0.1901, df = 49, p-value = 0.85
+alternative hypothesis: true mean is not equal to 0
+95 percent confidence interval:
+ -0.009568563  0.011568563
+sample estimates:
+mean of x 
+    0.001 
+
+
+> 
+> ################################################################################
+> ### Session Information
+> 
+> sessionInfo()
+R version 3.0.0 RC (2013-03-27 r62426)
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+ [1] e1071_1.6-1     class_7.3-7     doMC_1.3.0      iterators_1.0.6
+ [5] kernlab_0.9-16  caret_5.16-04   reshape2_1.2.2  plyr_1.8       
+ [9] lattice_0.20-15 foreach_1.4.0   cluster_1.14.4 
+
+loaded via a namespace (and not attached):
+[1] codetools_0.2-8 compiler_3.0.0  grid_3.0.0      stringr_0.6.2  
+[5] tools_3.0.0    
+> 
+> q("no")
+> proc.time()
+    user   system  elapsed 
+3160.134  208.484  884.731 

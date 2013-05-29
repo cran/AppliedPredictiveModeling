@@ -1,0 +1,216 @@
+
+R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+Copyright (C) 2013 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################################################
+> ### R code from Applied Predictive Modeling (2013) by Kuhn and Johnson.
+> ### Copyright 2013 Kuhn and Johnson
+> ### Web Page: http://www.appliedpredictivemodeling.com
+> ### Contact: Max Kuhn (mxkuhn@gmail.com)
+> ###
+> ### Chapter 2: A Short Tour of the Predictive Modeling Process
+> ###
+> ### Required packages: AppliedPredictiveModeling, earth, caret, lattice
+> ###
+> ### Data used: The FuelEconomy data in the AppliedPredictiveModeling package
+> ###
+> ### Notes: 
+> ### 1) This code is provided without warranty.
+> ###
+> ### 2) This code should help the user reproduce the results in the
+> ### text. There will be differences between this code and what is is
+> ### the computing section. For example, the computing sections show
+> ### how the source functions work (e.g. randomForest() or plsr()),
+> ### which were not directly used when creating the book. Also, there may be 
+> ### syntax differences that occur over time as packages evolve. These files 
+> ### will reflect those changes.
+> ###
+> ### 3) In some cases, the calculations in the book were run in 
+> ### parallel. The sub-processes may reset the random number seed.
+> ### Your results may slightly vary.
+> ###
+> ################################################################################
+> 
+> ################################################################################
+> ### Section 2.1 Case Study: Predicting Fuel Economy
+> 
+> library(AppliedPredictiveModeling)
+Loading required package: CORElearn
+Loading required package: cluster
+Loading required package: rpart
+Loading required package: MASS
+Loading required package: plyr
+Loading required package: reshape2
+> data(FuelEconomy)
+> 
+> ## Format data for plotting against engine displacement
+> 
+> ## Sort by engine displacement
+> cars2010 <- cars2010[order(cars2010$EngDispl),]
+> cars2011 <- cars2011[order(cars2011$EngDispl),]
+> 
+> ## Combine data into one data frame
+> cars2010a <- cars2010
+> cars2010a$Year <- "2010 Model Year"
+> cars2011a <- cars2011
+> cars2011a$Year <- "2011 Model Year"
+> 
+> plotData <- rbind(cars2010a, cars2011a)
+> 
+> library(lattice)
+> xyplot(FE ~ EngDispl|Year, plotData,
++        xlab = "Engine Displacement",
++        ylab = "Fuel Efficiency (MPG)",
++        between = list(x = 1.2))
+> 
+> ## Fit a single linear model and conduct 10-fold CV to estimate the error
+> library(caret)
+Loading required package: foreach
+> set.seed(1)
+> lm1Fit <- train(FE ~ EngDispl, 
++                 data = cars2010,
++                 method = "lm", 
++                 trControl = trainControl(method= "cv"))
+Warning message:
+executing %dopar% sequentially: no parallel backend registered 
+> lm1Fit
+1107 samples
+  13 predictors
+
+No pre-processing
+Resampling: Cross-Validation (10 fold) 
+
+Summary of sample sizes: 997, 996, 995, 996, 997, 996, ... 
+
+Resampling results
+
+  RMSE  Rsquared  RMSE SD  Rsquared SD
+  4.6   0.628     0.493    0.0442     
+
+ 
+> 
+> 
+> ## Fit a quadratic model too
+> 
+> ## Create squared terms
+> cars2010$ED2 <- cars2010$EngDispl^2
+> cars2011$ED2 <- cars2011$EngDispl^2
+> 
+> set.seed(1)
+> lm2Fit <- train(FE ~ EngDispl + ED2, 
++                 data = cars2010,
++                 method = "lm", 
++                 trControl = trainControl(method= "cv"))
+> lm2Fit
+1107 samples
+  14 predictors
+
+No pre-processing
+Resampling: Cross-Validation (10 fold) 
+
+Summary of sample sizes: 997, 996, 995, 996, 997, 996, ... 
+
+Resampling results
+
+  RMSE  Rsquared  RMSE SD  Rsquared SD
+  4.23  0.684     0.419    0.0421     
+
+ 
+> 
+> ## Finally a MARS model (via the earth package)
+> 
+> library(earth)
+Loading required package: leaps
+Loading required package: plotmo
+Loading required package: plotrix
+> set.seed(1)
+> marsFit <- train(FE ~ EngDispl, 
++                  data = cars2010,
++                  method = "earth",
++                  tuneLength = 15,
++                  trControl = trainControl(method= "cv"))
+> marsFit
+1107 samples
+  14 predictors
+
+No pre-processing
+Resampling: Cross-Validation (10 fold) 
+
+Summary of sample sizes: 997, 996, 995, 996, 997, 996, ... 
+
+Resampling results across tuning parameters:
+
+  nprune  RMSE  Rsquared  RMSE SD  Rsquared SD
+  2       4.3   0.673     0.441    0.0429     
+  3       4.26  0.68      0.44     0.0395     
+  4       4.23  0.685     0.449    0.0428     
+  5       4.25  0.682     0.489    0.0432     
+
+Tuning parameter 'degree' was held constant at a value of 1
+RMSE was used to select the optimal model using  the smallest value.
+The final values used for the model were degree = 1 and nprune = 4. 
+> 
+> plot(marsFit)
+> 
+> ## Predict the test set data
+> cars2011$lm1  <- predict(lm1Fit,  cars2011)
+> cars2011$lm2  <- predict(lm2Fit,  cars2011)
+> cars2011$mars <- predict(marsFit, cars2011)
+> 
+> ## Get test set performance values via caret's postResample function
+> 
+> postResample(pred = cars2011$lm1,  obs = cars2011$FE)
+     RMSE  Rsquared 
+5.1625309 0.7018642 
+> postResample(pred = cars2011$lm2,  obs = cars2011$FE)
+     RMSE  Rsquared 
+4.7162853 0.7486074 
+> postResample(pred = cars2011$mars, obs = cars2011$FE)
+     RMSE  Rsquared 
+4.6855501 0.7499953 
+> 
+> ################################################################################
+> ### Session Information
+> 
+> sessionInfo()
+R version 3.0.0 RC (2013-03-27 r62426)
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] earth_3.2-3                      plotrix_3.4-6                   
+ [3] plotmo_1.3-2                     leaps_2.9                       
+ [5] caret_5.16-04                    foreach_1.4.0                   
+ [7] lattice_0.20-15                  AppliedPredictiveModeling_1.01-1
+ [9] reshape2_1.2.2                   plyr_1.8                        
+[11] MASS_7.3-26                      CORElearn_0.9.41                
+[13] rpart_4.1-1                      cluster_1.14.4                  
+
+loaded via a namespace (and not attached):
+[1] codetools_0.2-8 compiler_3.0.0  grid_3.0.0      iterators_1.0.6
+[5] stringr_0.6.2   tools_3.0.0    
+> 
+> q("no")
+> proc.time()
+   user  system elapsed 
+  4.394   0.109   4.490 

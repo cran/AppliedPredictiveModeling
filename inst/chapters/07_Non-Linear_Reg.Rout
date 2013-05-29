@@ -1,0 +1,457 @@
+
+R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+Copyright (C) 2013 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################################################
+> ### R code from Applied Predictive Modeling (2013) by Kuhn and Johnson.
+> ### Copyright 2013 Kuhn and Johnson
+> ### Web Page: http://www.appliedpredictivemodeling.com
+> ### Contact: Max Kuhn (mxkuhn@gmail.com)
+> ###
+> ### Chapter 7: Non-Linear Regression Models
+> ###
+> ### Required packages: AppliedPredictiveModeling, caret, doMC (optional), earth,
+> ###                    kernlab, lattice, nnet
+> ###
+> ### Data used: The solubility from the AppliedPredictiveModeling package
+> ###
+> ### Notes: 
+> ### 1) This code is provided without warranty.
+> ###
+> ### 2) This code should help the user reproduce the results in the
+> ### text. There will be differences between this code and what is is
+> ### the computing section. For example, the computing sections show
+> ### how the source functions work (e.g. randomForest() or plsr()),
+> ### which were not directly used when creating the book. Also, there may be 
+> ### syntax differences that occur over time as packages evolve. These files 
+> ### will reflect those changes.
+> ###
+> ### 3) In some cases, the calculations in the book were run in 
+> ### parallel. The sub-processes may reset the random number seed.
+> ### Your results may slightly vary.
+> ###
+> ################################################################################
+> 
+> ################################################################################
+> ### Load the data
+> 
+> library(AppliedPredictiveModeling)
+Loading required package: CORElearn
+Loading required package: cluster
+Loading required package: rpart
+Loading required package: MASS
+Loading required package: plyr
+Loading required package: reshape2
+> data(solubility)
+> 
+> ### Create a control funciton that will be used across models. We
+> ### create the fold assignments explictily instead of relying on the
+> ### random number seed being set to identical values.
+> 
+> library(caret)
+Loading required package: foreach
+Loading required package: lattice
+> set.seed(100)
+> indx <- createFolds(solTrainY, returnTrain = TRUE)
+> ctrl <- trainControl(method = "cv", index = indx)
+> 
+> ################################################################################
+> ### Section 7.1 Neural Networks
+> 
+> library(caret)
+> 
+> nnetGrid <- expand.grid(.decay = c(0, 0.01, .1), 
++                         .size = c(1, 3, 5, 7, 9, 11, 13), 
++                         .bag = FALSE)
+> 
+> ### Optional: parallel processing can be used via the 'do' packages,
+> ### such as doMC, doMPI etc. We used doMC (not on Windows) to speed
+> ### up the computations.
+> 
+> ### WARNING: Be aware of how much memory is needed to parallel
+> ### process. It can very quickly overwhelm the availible hardware. We
+> ### estimate the memory usuage (VSIZE = total memory size) to be 
+> ### 2677M/core.
+> 
+> library(doMC)
+Loading required package: iterators
+Loading required package: parallel
+> registerDoMC(10)
+> 
+> set.seed(100)
+> nnetTune <- train(x = solTrainXtrans, y = solTrainY,
++                   method = "avNNet",
++                   tuneGrid = nnetGrid,
++                   trControl = ctrl,
++                   preProc = c("center", "scale"),
++                   linout = TRUE,
++                   trace = FALSE,
++                   MaxNWts = 13 * (ncol(solTrainXtrans) + 1) + 13 + 1,
++                   allowParallel = FALSE,
++                   maxit = 1000)
+> nnetTune
+951 samples
+228 predictors
+
+Pre-processing: centered, scaled 
+Resampling: Cross-Validation (10 fold) 
+
+Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
+
+Resampling results across tuning parameters:
+
+  size  decay  RMSE   Rsquared  RMSE SD  Rsquared SD
+  1     0      0.876  0.83      0.105    0.0287     
+  1     0.01   0.739  0.871     0.0688   0.0258     
+  1     0.1    0.752  0.867     0.0645   0.0243     
+  3     0      0.841  0.831     0.0895   0.0288     
+  3     0.01   0.816  0.845     0.0851   0.0381     
+  3     0.1    0.788  0.854     0.0497   0.0297     
+  5     0      0.793  0.853     0.0585   0.023      
+  5     0.01   0.839  0.84      0.0661   0.0263     
+  5     0.1    0.724  0.877     0.0777   0.0271     
+  7     0      0.803  0.85      0.0806   0.0307     
+  7     0.01   0.805  0.852     0.0932   0.0333     
+  7     0.1    0.689  0.889     0.0634   0.0235     
+  9     0      0.852  0.834     0.104    0.0433     
+  9     0.01   0.794  0.854     0.0851   0.0353     
+  9     0.1    0.673  0.893     0.0824   0.0256     
+  11    0      0.82   0.843     0.11     0.0428     
+  11    0.01   0.746  0.871     0.079    0.0269     
+  11    0.1    0.68   0.891     0.0658   0.0198     
+  13    0      0.799  0.853     0.0961   0.0392     
+  13    0.01   0.741  0.872     0.0857   0.0319     
+  13    0.1    0.672  0.894     0.0749   0.0214     
+
+Tuning parameter 'bag' was held constant at a value of 0
+RMSE was used to select the optimal model using  the smallest value.
+The final values used for the model were size = 13, decay = 0.1 and bag = FALSE. 
+> 
+> plot(nnetTune)
+> 
+> testResults <- data.frame(obs = solTestY,
++                           NNet = predict(nnetTune, solTestXtrans))
+> 
+> ################################################################################
+> ### Section 7.2 Multivariate Adaptive Regression Splines
+> 
+> set.seed(100)
+> marsTune <- train(x = solTrainXtrans, y = solTrainY,
++                   method = "earth",
++                   tuneGrid = expand.grid(.degree = 1, .nprune = 2:38),
++                   trControl = ctrl)
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: leaps
+Loading required package: plotmo
+Loading required package: plotrix
+> marsTune
+951 samples
+228 predictors
+
+No pre-processing
+Resampling: Cross-Validation (10 fold) 
+
+Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
+
+Resampling results across tuning parameters:
+
+  nprune  RMSE   Rsquared  RMSE SD  Rsquared SD
+  2       1.54   0.438     0.128    0.0802     
+  3       1.12   0.7       0.0968   0.0647     
+  4       1.06   0.73      0.0849   0.0594     
+  5       1.02   0.75      0.102    0.0551     
+  6       0.984  0.768     0.0733   0.042      
+  7       0.919  0.796     0.0657   0.0432     
+  8       0.862  0.821     0.0418   0.0237     
+  9       0.855  0.823     0.0323   0.0263     
+  10      0.854  0.823     0.0423   0.0329     
+  11      0.841  0.829     0.042    0.0306     
+  12      0.816  0.839     0.0348   0.0296     
+  13      0.815  0.839     0.0466   0.0306     
+  14      0.81   0.842     0.0407   0.0263     
+  15      0.804  0.843     0.0518   0.0309     
+  16      0.79   0.849     0.0363   0.0285     
+  17      0.779  0.853     0.0382   0.0271     
+  18      0.773  0.855     0.0465   0.0309     
+  19      0.758  0.861     0.0502   0.0307     
+  20      0.745  0.865     0.0539   0.0313     
+  21      0.732  0.87      0.049    0.0295     
+  22      0.721  0.874     0.0468   0.028      
+  23      0.715  0.876     0.0558   0.0278     
+  24      0.718  0.875     0.051    0.0274     
+  25      0.706  0.879     0.0542   0.0276     
+  26      0.702  0.881     0.0541   0.0268     
+  27      0.699  0.881     0.0545   0.0267     
+  28      0.698  0.882     0.0526   0.0269     
+  29      0.698  0.882     0.056    0.0276     
+  30      0.693  0.883     0.0545   0.0265     
+  31      0.69   0.884     0.0511   0.0255     
+  32      0.687  0.885     0.0515   0.0248     
+  33      0.688  0.885     0.0539   0.026      
+  34      0.685  0.886     0.0512   0.0248     
+  35      0.684  0.887     0.0508   0.0247     
+  36      0.685  0.886     0.0529   0.0254     
+  37      0.685  0.886     0.0529   0.0258     
+  38      0.683  0.887     0.0512   0.0251     
+
+Tuning parameter 'degree' was held constant at a value of 1
+RMSE was used to select the optimal model using  the smallest value.
+The final values used for the model were degree = 1 and nprune = 38. 
+> 
+> plot(marsTune)
+> 
+> testResults$MARS <- predict(marsTune, solTestXtrans)
+> 
+> marsImp <- varImp(marsTune, scale = FALSE)
+> plot(marsImp, top = 25)
+> 
+> ################################################################################
+> ### Section 7.3 Support Vector Machines
+> 
+> set.seed(100)
+> svmRTune <- train(x = solTrainXtrans, y = solTrainY,
++                   method = "svmRadial",
++                   preProc = c("center", "scale"),
++                   tuneLength = 14,
++                   trControl = ctrl)
+> svmRTune
+951 samples
+228 predictors
+
+Pre-processing: centered, scaled 
+Resampling: Cross-Validation (10 fold) 
+
+Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
+
+Resampling results across tuning parameters:
+
+  C     RMSE   Rsquared  RMSE SD  Rsquared SD
+  0.25  0.806  0.864     0.0542   0.0183     
+  0.5   0.716  0.885     0.0522   0.019      
+  1     0.669  0.896     0.0584   0.0189     
+  2     0.645  0.902     0.0624   0.0179     
+  4     0.628  0.907     0.0643   0.0172     
+  8     0.619  0.909     0.0657   0.0174     
+  16    0.615  0.91      0.0652   0.0174     
+  32    0.612  0.911     0.0666   0.0179     
+  64    0.608  0.911     0.0664   0.0184     
+  128   0.605  0.912     0.0654   0.0187     
+  256   0.606  0.912     0.0637   0.0185     
+  512   0.607  0.912     0.0644   0.0186     
+  1020  0.609  0.911     0.065    0.019      
+  2050  0.613  0.91      0.0639   0.0191     
+
+Tuning parameter 'sigma' was held constant at a value of 0.00389
+RMSE was used to select the optimal model using  the smallest value.
+The final values used for the model were C = 128 and sigma = 0.00389. 
+> plot(svmRTune, scales = list(x = list(log = 2)))                 
+> 
+> svmGrid <- expand.grid(.degree = 1:2, 
++                        .scale = c(0.01, 0.005, 0.001), 
++                        .C = 2^(-2:5))
+> set.seed(100)
+> svmPTune <- train(x = solTrainXtrans, y = solTrainY,
++                   method = "svmPoly",
++                   preProc = c("center", "scale"),
++                   tuneGrid = svmGrid,
++                   trControl = ctrl)
+> 
+> svmPTune
+951 samples
+228 predictors
+
+Pre-processing: centered, scaled 
+Resampling: Cross-Validation (10 fold) 
+
+Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
+
+Resampling results across tuning parameters:
+
+  C     degree  scale  RMSE   Rsquared  RMSE SD  Rsquared SD
+  0.25  1       0.001  1.05   0.793     0.0949   0.0298     
+  0.25  1       0.005  0.769  0.865     0.0537   0.0155     
+  0.25  1       0.01   0.719  0.878     0.0407   0.0153     
+  0.25  2       0.001  0.876  0.841     0.0747   0.0183     
+  0.25  2       0.005  0.653  0.899     0.0602   0.0183     
+  0.25  2       0.01   0.621  0.908     0.0703   0.02       
+  0.5   1       0.001  0.893  0.834     0.0755   0.0188     
+  0.5   1       0.005  0.719  0.878     0.0407   0.0153     
+  0.5   1       0.01   0.694  0.885     0.0366   0.0157     
+  0.5   2       0.001  0.767  0.868     0.0549   0.0168     
+  0.5   2       0.005  0.628  0.906     0.0668   0.019      
+  0.5   2       0.01   0.618  0.908     0.0737   0.0208     
+  1     1       0.001  0.793  0.858     0.0568   0.0161     
+  1     1       0.005  0.694  0.885     0.0366   0.0157     
+  1     1       0.01   0.687  0.887     0.0384   0.0158     
+  1     2       0.001  0.701  0.885     0.0461   0.0157     
+  1     2       0.005  0.617  0.909     0.0698   0.0196     
+  1     2       0.01   0.611  0.91      0.079    0.0211     
+  2     1       0.001  0.732  0.875     0.0432   0.015      
+  2     1       0.005  0.687  0.887     0.0384   0.0158     
+  2     1       0.01   0.696  0.884     0.0407   0.0172     
+  2     2       0.001  0.661  0.896     0.0454   0.0151     
+  2     2       0.005  0.615  0.909     0.0749   0.0203     
+  2     2       0.01   0.609  0.911     0.0766   0.0204     
+  4     1       0.001  0.701  0.883     0.0389   0.0155     
+  4     1       0.005  0.696  0.884     0.0407   0.0172     
+  4     1       0.01   0.709  0.88      0.0466   0.019      
+  4     2       0.001  0.64   0.902     0.0537   0.016      
+  4     2       0.005  0.614  0.91      0.0806   0.0211     
+  4     2       0.01   0.612  0.91      0.0756   0.0203     
+  8     1       0.001  0.686  0.888     0.0369   0.0152     
+  8     1       0.005  0.71   0.88      0.0467   0.019      
+  8     1       0.01   0.723  0.875     0.049    0.0189     
+  8     2       0.001  0.626  0.906     0.0662   0.0183     
+  8     2       0.005  0.616  0.909     0.078    0.0205     
+  8     2       0.01   0.619  0.908     0.0737   0.0201     
+  16    1       0.001  0.693  0.885     0.0407   0.017      
+  16    1       0.005  0.724  0.875     0.0489   0.0189     
+  16    1       0.01   0.735  0.871     0.0568   0.0212     
+  16    2       0.001  0.633  0.904     0.0695   0.0196     
+  16    2       0.005  0.622  0.908     0.0775   0.0204     
+  16    2       0.01   0.623  0.907     0.0742   0.0207     
+  32    1       0.001  0.703  0.882     0.0439   0.0183     
+  32    1       0.005  0.735  0.871     0.057    0.0212     
+  32    1       0.01   0.739  0.87      0.0564   0.0232     
+  32    2       0.001  0.636  0.903     0.0804   0.022      
+  32    2       0.005  0.632  0.905     0.0782   0.0209     
+  32    2       0.01   0.628  0.906     0.0728   0.0206     
+
+RMSE was used to select the optimal model using  the smallest value.
+The final values used for the model were C = 2, degree = 2 and scale = 0.01. 
+> plot(svmPTune, 
++      scales = list(x = list(log = 2), 
++                    between = list(x = .5, y = 1)))                 
+> 
+> testResults$SVMr <- predict(svmRTune, solTestXtrans)
+> testResults$SVMp <- predict(svmPTune, solTestXtrans)
+> 
+> ################################################################################
+> ### Section 7.4 K-Nearest Neighbors
+> 
+> ### First we remove near-zero variance predictors
+> knnDescr <- solTrainXtrans[, -nearZeroVar(solTrainXtrans)]
+> 
+> set.seed(100)
+> knnTune <- train(x = knnDescr, y = solTrainY,
++                  method = "knn",
++                  preProc = c("center", "scale"),
++                  tuneGrid = data.frame(.k = 1:20),
++                  trControl = ctrl)
+>                  
+> knnTune
+951 samples
+225 predictors
+
+Pre-processing: centered, scaled 
+Resampling: Cross-Validation (10 fold) 
+
+Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
+
+Resampling results across tuning parameters:
+
+  k   RMSE  Rsquared  RMSE SD  Rsquared SD
+  1   1.23  0.671     0.169    0.0864     
+  2   1.1   0.723     0.144    0.0605     
+  3   1.06  0.741     0.0969   0.0424     
+  4   1.04  0.747     0.081    0.0364     
+  5   1.06  0.738     0.0674   0.0445     
+  6   1.05  0.739     0.0645   0.048      
+  7   1.05  0.739     0.0625   0.0399     
+  8   1.05  0.742     0.0651   0.043      
+  9   1.05  0.738     0.0694   0.043      
+  10  1.06  0.735     0.061    0.0402     
+  11  1.06  0.733     0.0598   0.0425     
+  12  1.08  0.727     0.0666   0.0456     
+  13  1.08  0.723     0.0677   0.0445     
+  14  1.09  0.72      0.0724   0.0451     
+  15  1.1   0.715     0.0751   0.0473     
+  16  1.11  0.711     0.0835   0.049      
+  17  1.11  0.708     0.0883   0.0492     
+  18  1.12  0.704     0.089    0.0504     
+  19  1.13  0.7       0.0922   0.0511     
+  20  1.14  0.697     0.0918   0.0503     
+
+RMSE was used to select the optimal model using  the smallest value.
+The final value used for the model was k = 4. 
+> 
+> plot(knnTune)
+> 
+> testResults$Knn <- predict(knnTune, solTestXtrans[, names(knnDescr)])
+> 
+> ################################################################################
+> ### Session Information
+> 
+> sessionInfo()
+R version 3.0.0 RC (2013-03-27 r62426)
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] grid      parallel  stats     graphics  grDevices utils     datasets 
+[8] methods   base     
+
+other attached packages:
+ [1] kernlab_0.9-16                   earth_3.2-3                     
+ [3] plotrix_3.4-6                    plotmo_1.3-2                    
+ [5] leaps_2.9                        nnet_7.3-6                      
+ [7] doMC_1.3.0                       iterators_1.0.6                 
+ [9] caret_5.16-04                    lattice_0.20-15                 
+[11] foreach_1.4.0                    AppliedPredictiveModeling_1.01-1
+[13] reshape2_1.2.2                   plyr_1.8                        
+[15] MASS_7.3-26                      CORElearn_0.9.41                
+[17] rpart_4.1-1                      cluster_1.14.4                  
+
+loaded via a namespace (and not attached):
+[1] codetools_0.2-8 compiler_3.0.0  stringr_0.6.2   tools_3.0.0    
+> 
+> q("no")
+> proc.time()
+      user     system    elapsed 
+109133.244    288.588  14729.182 

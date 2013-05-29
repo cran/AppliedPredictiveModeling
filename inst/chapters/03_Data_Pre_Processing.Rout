@@ -1,0 +1,292 @@
+
+R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+Copyright (C) 2013 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################################################
+> ### R code from Applied Predictive Modeling (2013) by Kuhn and Johnson.
+> ### Copyright 2013 Kuhn and Johnson
+> ### Web Page: http://www.appliedpredictivemodeling.com
+> ### Contact: Max Kuhn (mxkuhn@gmail.com)
+> ###
+> ### Chapter 3: Data Pre-Processing
+> ###
+> ### Required packages: AppliedPredictiveModeling, e1071, caret, corrplot
+> ###
+> ### Data used: The (unprocessed) cell segmentation data from the
+> ###            AppliedPredictiveModeling package.
+> ###
+> ### Notes: 
+> ### 1) This code is provided without warranty.
+> ###
+> ### 2) This code should help the user reproduce the results in the
+> ### text. There will be differences between this code and what is is
+> ### the computing section. For example, the computing sections show
+> ### how the source functions work (e.g. randomForest() or plsr()),
+> ### which were not directly used when creating the book. Also, there may be 
+> ### syntax differences that occur over time as packages evolve. These files 
+> ### will reflect those changes.
+> ###
+> ### 3) In some cases, the calculations in the book were run in 
+> ### parallel. The sub-processes may reset the random number seed.
+> ### Your results may slightly vary.
+> ###
+> ################################################################################
+> 
+> ################################################################################
+> ### Section 3.1 Case Study: Cell Segmentation in High-Content Screening
+> 
+> library(AppliedPredictiveModeling)
+Loading required package: CORElearn
+Loading required package: cluster
+Loading required package: rpart
+Loading required package: MASS
+Loading required package: plyr
+Loading required package: reshape2
+> data(segmentationOriginal)
+> 
+> ## Retain the original training set
+> segTrain <- subset(segmentationOriginal, Case == "Train")
+> 
+> ## Remove the first three columns (identifier columns)
+> segTrainX <- segTrain[, -(1:3)]
+> segTrainClass <- segTrain$Class
+> 
+> ################################################################################
+> ### Section 3.2 Data Transformations for Individual Predictors
+> 
+> ## The column VarIntenCh3 measures the standard deviation of the intensity
+> ## of the pixels in the actin filaments
+> 
+> max(segTrainX$VarIntenCh3)/min(segTrainX$VarIntenCh3)
+[1] 870.8872
+> 
+> library(e1071)
+Loading required package: class
+> skewness(segTrainX$VarIntenCh3)
+[1] 2.391624
+> 
+> library(caret)
+Loading required package: foreach
+Loading required package: lattice
+> 
+> ## Use caret's preProcess function to transform for skewness
+> segPP <- preProcess(segTrainX, method = "BoxCox")
+> 
+> ## Apply the transformations
+> segTrainTrans <- predict(segPP, segTrainX)
+> 
+> ## Results for a single predictor
+> segPP$bc$VarIntenCh3
+Box-Cox Transformation
+
+1009 data points used to estimate Lambda
+
+Input data summary:
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+  0.8693  37.0600  68.1300 101.7000 125.0000 757.0000 
+
+Largest/Smallest: 871 
+Sample Skewness: 2.39 
+
+Estimated Lambda: 0.1 
+With fudge factor, Lambda = 0 will be used for transformations
+
+> 
+> histogram(~segTrainX$VarIntenCh3,
++           xlab = "Natural Units",
++           type = "count")
+> 
+> histogram(~log(segTrainX$VarIntenCh3),
++           xlab = "Log Units",
++           ylab = " ",
++           type = "count")
+> 
+> segPP$bc$PerimCh1
+Box-Cox Transformation
+
+1009 data points used to estimate Lambda
+
+Input data summary:
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+  47.74   64.37   79.02   91.61  103.20  459.80 
+
+Largest/Smallest: 9.63 
+Sample Skewness: 2.59 
+
+Estimated Lambda: -1.1 
+
+> 
+> histogram(~segTrainX$PerimCh1,
++           xlab = "Natural Units",
++           type = "count")
+> 
+> histogram(~segTrainTrans$PerimCh1,
++           xlab = "Transformed Data",
++           ylab = " ",
++           type = "count")
+> 
+> ################################################################################
+> ### Section 3.3 Data Transformations for Multiple Predictors
+> 
+> ## R's prcomp is used to conduct PCA
+> pr <- prcomp(~ AvgIntenCh1 + EntropyIntenCh1, 
++              data = segTrainTrans, 
++              scale. = TRUE)
+> 
+> transparentTheme(pchSize = .7, trans = .3)
+> 
+> xyplot(AvgIntenCh1 ~ EntropyIntenCh1,
++        data = segTrainTrans,
++        groups = segTrain$Class,
++        xlab = "Channel 1 Fiber Width",
++        ylab = "Intensity Entropy Channel 1",
++        auto.key = list(columns = 2),
++        type = c("p", "g"),
++        main = "Original Data",
++        aspect = 1)
+> 
+> xyplot(PC2 ~ PC1,
++        data = as.data.frame(pr$x),
++        groups = segTrain$Class,
++        xlab = "Principal Component #1",
++        ylab = "Principal Component #2",
++        main = "Transformed",
++        xlim = extendrange(pr$x),
++        ylim = extendrange(pr$x),
++        type = c("p", "g"),
++        aspect = 1)
+> 
+> 
+> ## Apply PCA to the entire set of predictors.
+> 
+> ## There are a few predictors with only a single value, so we remove these first
+> ## (since PCA uses variances, which would be zero)
+> 
+> isZV <- apply(segTrainX, 2, function(x) length(unique(x)) == 1)
+> segTrainX <- segTrainX[, !isZV]
+> 
+> segPP <- preProcess(segTrainX, c("BoxCox", "center", "scale"))
+> segTrainTrans <- predict(segPP, segTrainX)
+> 
+> segPCA <- prcomp(segTrainTrans, center = TRUE, scale. = TRUE)
+> 
+> ## Plot a scatterplot matrix of the first three components
+> transparentTheme(pchSize = .8, trans = .3)
+> 
+> panelRange <- extendrange(segPCA$x[, 1:3])
+> splom(as.data.frame(segPCA$x[, 1:3]),
++       groups = segTrainClass,
++       type = c("p", "g"),
++       as.table = TRUE,
++       auto.key = list(columns = 2),
++       prepanel.limits = function(x) panelRange)
+> 
+> ## Format the rotation values for plotting
+> segRot <- as.data.frame(segPCA$rotation[, 1:3])
+> 
+> ## Derive the channel variable
+> vars <- rownames(segPCA$rotation)
+> channel <- rep(NA, length(vars))
+> channel[grepl("Ch1$", vars)] <- "Channel 1"
+> channel[grepl("Ch2$", vars)] <- "Channel 2"
+> channel[grepl("Ch3$", vars)] <- "Channel 3"
+> channel[grepl("Ch4$", vars)] <- "Channel 4"
+> 
+> segRot$Channel <- channel
+> segRot <- segRot[complete.cases(segRot),]
+> segRot$Channel <- factor(as.character(segRot$Channel))
+> 
+> ## Plot a scatterplot matrix of the first three rotation variables
+> 
+> transparentTheme(pchSize = .8, trans = .7)
+> panelRange <- extendrange(segRot[, 1:3])
+> library(ellipse)
+> upperp <- function(...)
++   {
++     args <- list(...)
++     circ1 <- ellipse(diag(rep(1, 2)), t = .1)
++     panel.xyplot(circ1[,1], circ1[,2],
++                  type = "l",
++                  lty = trellis.par.get("reference.line")$lty,
++                  col = trellis.par.get("reference.line")$col,
++                  lwd = trellis.par.get("reference.line")$lwd)
++     circ2 <- ellipse(diag(rep(1, 2)), t = .2)
++     panel.xyplot(circ2[,1], circ2[,2],
++                  type = "l",
++                  lty = trellis.par.get("reference.line")$lty,
++                  col = trellis.par.get("reference.line")$col,
++                  lwd = trellis.par.get("reference.line")$lwd)
++     circ3 <- ellipse(diag(rep(1, 2)), t = .3)
++     panel.xyplot(circ3[,1], circ3[,2],
++                  type = "l",
++                  lty = trellis.par.get("reference.line")$lty,
++                  col = trellis.par.get("reference.line")$col,
++                  lwd = trellis.par.get("reference.line")$lwd)
++     panel.xyplot(args$x, args$y, groups = args$groups, subscripts = args$subscripts)
++   }
+> splom(~segRot[, 1:3],
++       groups = segRot$Channel,
++       lower.panel = function(...){}, upper.panel = upperp,
++       prepanel.limits = function(x) panelRange,
++       auto.key = list(columns = 2))
+> 
+> ################################################################################
+> ### Section 3.5 Removing Variables
+> 
+> ## To filter on correlations, we first get the correlation matrix for the 
+> ## predictor set
+> 
+> segCorr <- cor(segTrainTrans)
+> 
+> library(corrplot)
+> corrplot(segCorr, order = "hclust", tl.cex = .35)
+> 
+> ## caret's findCorrelation function is used to identify columns to remove.
+> highCorr <- findCorrelation(segCorr, .75)
+> 
+> 
+> ################################################################################
+> ### Session Information
+> 
+> sessionInfo()
+R version 3.0.0 RC (2013-03-27 r62426)
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] corrplot_0.71                    ellipse_0.3-7                   
+ [3] caret_5.16-04                    lattice_0.20-15                 
+ [5] foreach_1.4.0                    e1071_1.6-1                     
+ [7] class_7.3-7                      AppliedPredictiveModeling_1.01-1
+ [9] reshape2_1.2.2                   plyr_1.8                        
+[11] MASS_7.3-26                      CORElearn_0.9.41                
+[13] rpart_4.1-1                      cluster_1.14.4                  
+
+loaded via a namespace (and not attached):
+[1] codetools_0.2-8 grid_3.0.0      iterators_1.0.6 stringr_0.6.2  
+[5] tools_3.0.0    
+> 
+> q("no")
+> proc.time()
+   user  system elapsed 
+  5.551   0.143   5.686 

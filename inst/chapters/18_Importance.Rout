@@ -1,0 +1,710 @@
+
+R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+Copyright (C) 2013 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################################################
+> ### R code from Applied Predictive Modeling (2013) by Kuhn and Johnson.
+> ### Copyright 2013 Kuhn and Johnson
+> ### Web Page: http://www.appliedpredictivemodeling.com
+> ### Contact: Max Kuhn (mxkuhn@gmail.com) 
+> ###
+> ### Chapter 18: Measuring Predictor Importance
+> ###
+> ### Required packages: AppliedPredictiveModeling, caret, CORElearn, corrplot,
+> ###                    pROC, minerva
+> ###                   
+> ###
+> ### Data used: The solubility data from the AppliedPredictiveModeling 
+> ###            package, the segmentation data in the caret package and the 
+> ###            grant data (created using "CreateGrantData.R" in the same
+> ###            directory as this file).
+> ###
+> ### Notes: 
+> ### 1) This code is provided without warranty.
+> ###
+> ### 2) This code should help the user reproduce the results in the
+> ### text. There will be differences between this code and what is is
+> ### the computing section. For example, the computing sections show
+> ### how the source functions work (e.g. randomForest() or plsr()),
+> ### which were not directly used when creating the book. Also, there may be 
+> ### syntax differences that occur over time as packages evolve. These files 
+> ### will reflect those changes.
+> ###
+> ### 3) In some cases, the calculations in the book were run in 
+> ### parallel. The sub-processes may reset the random number seed.
+> ### Your results may slightly vary.
+> ###
+> ################################################################################
+> 
+> 
+> 
+> ################################################################################
+> ### Section 18.1 Numeric Outcomes
+> 
+> ## Load the solubility data
+> 
+> library(AppliedPredictiveModeling)
+Loading required package: CORElearn
+Loading required package: cluster
+Loading required package: rpart
+Loading required package: MASS
+Loading required package: plyr
+Loading required package: reshape2
+> data(solubility)
+> 
+> trainData <- solTrainXtrans
+> trainData$y <- solTrainY
+> 
+> 
+> ## keep the continuous predictors and append the outcome to the data frame
+> SolContPred <- solTrainXtrans[, !grepl("FP", names(solTrainXtrans))]
+> numSolPred <- ncol(SolContPred)
+> SolContPred$Sol <- solTrainY
+> 
+> ## Get the LOESS smoother and the summary measure
+> library(caret)
+Loading required package: foreach
+Loading required package: lattice
+> smoother <- filterVarImp(x = SolContPred[, -ncol(SolContPred)], 
++                          y = solTrainY, 
++                          nonpara = TRUE)
+Loading required package: pROC
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following object is masked from ‘package:stats’:
+
+    cov, smooth, var
+
+> smoother$Predictor <- rownames(smoother)
+> names(smoother)[1] <- "Smoother"
+> 
+> ## Calculate the correlation matrices and keep the columns with the correlations
+> ## between the predictors and the outcome
+> 
+> correlations <- cor(SolContPred)[-(numSolPred+1),(numSolPred+1)]
+> rankCorrelations <- cor(SolContPred, method = "spearman")[-(numSolPred+1),(numSolPred+1)]
+> corrs <- data.frame(Predictor = names(SolContPred)[1:numSolPred],
++                     Correlation = correlations,
++                     RankCorrelation  = rankCorrelations)
+> 
+> ## The maximal information coefficient (MIC) values can be obtained from the
+> ### minerva package:
+> 
+> library(minerva)
+> MIC <- mine(x = SolContPred[, 1:numSolPred], y = solTrainY)$MIC
+> MIC <- data.frame(Predictor = rownames(MIC),
++                   MIC = MIC[,1])
+> 
+> 
+> ## The Relief values for regression can be computed using the CORElearn
+> ## package:
+> 
+> library(CORElearn)
+> ReliefF <- attrEval(Sol ~ .,  data = SolContPred,
++                     estimator = "RReliefFequalK")
+> ReliefF <- data.frame(Predictor = names(ReliefF),
++                   Relief = ReliefF)
+> 
+> ## Combine them all together for a plot
+> contDescrScores <- merge(smoother, corrs)
+> contDescrScores <- merge(contDescrScores, MIC)
+> contDescrScores <- merge(contDescrScores, ReliefF)
+> 
+> rownames(contDescrScores) <- contDescrScores$Predictor
+> 
+> contDescrScores
+                          Predictor    Smoother Correlation RankCorrelation
+HydrophilicFactor HydrophilicFactor 0.184455208  0.38598321      0.36469127
+MolWeight                 MolWeight 0.444393085 -0.65852844     -0.68529880
+NumAromaticBonds   NumAromaticBonds 0.168645461 -0.41066466     -0.45787109
+NumAtoms                   NumAtoms 0.189931478 -0.43581129     -0.51983173
+NumBonds                   NumBonds 0.210717251 -0.45903949     -0.54839850
+NumCarbon                 NumCarbon 0.368196173 -0.60679170     -0.67359114
+NumChlorine             NumChlorine 0.158529031 -0.39815704     -0.35707519
+NumDblBonds             NumDblBonds 0.002409996  0.04909171     -0.02042731
+NumHalogen               NumHalogen 0.157187646 -0.39646897     -0.38111965
+NumHydrogen             NumHydrogen 0.022654223 -0.15051320     -0.25592586
+NumMultBonds           NumMultBonds 0.230799468 -0.48041593     -0.47971353
+NumNitrogen             NumNitrogen 0.026032871  0.16134705      0.10078218
+NumNonHAtoms           NumNonHAtoms 0.340616555 -0.58362364     -0.62965400
+NumNonHBonds           NumNonHBonds 0.342455243 -0.58519676     -0.63228366
+NumOxygen                 NumOxygen 0.045245139  0.21270905      0.14954994
+NumRings                   NumRings 0.231183499 -0.48081545     -0.50941815
+NumRotBonds             NumRotBonds 0.013147325 -0.11466178     -0.14976036
+NumSulfer                 NumSulfer 0.005865198 -0.07658458     -0.12090249
+SurfaceArea1           SurfaceArea1 0.192535120  0.30325216      0.19339720
+SurfaceArea2           SurfaceArea2 0.216936613  0.26663995      0.14057885
+                        MIC      Relief
+HydrophilicFactor 0.3208456 0.140185965
+MolWeight         0.4679277 0.084734907
+NumAromaticBonds  0.2705170 0.050013692
+NumAtoms          0.2896815 0.008618179
+NumBonds          0.3268683 0.002422405
+NumCarbon         0.4434121 0.061605610
+NumChlorine       0.2011708 0.023813283
+NumDblBonds       0.1688472 0.056997492
+NumHalogen        0.2017841 0.045002621
+NumHydrogen       0.1939521 0.075626122
+NumMultBonds      0.2792600 0.051554380
+NumNitrogen       0.1535738 0.168280773
+NumNonHAtoms      0.3947092 0.036433860
+NumNonHBonds      0.3919627 0.035619406
+NumOxygen         0.1527421 0.123797003
+NumRings          0.3161828 0.056263469
+NumRotBonds       0.1754215 0.043556286
+NumSulfer         0.1297052 0.062359034
+SurfaceArea1      0.2054896 0.120727945
+SurfaceArea2      0.2274047 0.117632188
+> 
+> contDescrSplomData <- contDescrScores
+> contDescrSplomData$Correlation <- abs(contDescrSplomData$Correlation)
+> contDescrSplomData$RankCorrelation <- abs(contDescrSplomData$RankCorrelation)
+> contDescrSplomData$Group <- "Other"
+> contDescrSplomData$Group[grepl("Surface", contDescrSplomData$Predictor)] <- "SA"
+> 
+> featurePlot(solTrainXtrans[, c("NumCarbon", "SurfaceArea2")],
++             solTrainY,
++             between = list(x = 1),
++             type = c("g", "p", "smooth"),
++             df = 3,
++             aspect = 1,
++             labels = c("", "Solubility"))
+> 
+> 
+> splom(~contDescrSplomData[,c(3, 4, 2, 5)],
++       groups = contDescrSplomData$Group,
++       varnames = c("Correlation", "Rank\nCorrelation", "LOESS", "MIC"))
+> 
+> 
+> ## Now look at the categorical (i.e. binary) predictors
+> SolCatPred <- solTrainXtrans[, grepl("FP", names(solTrainXtrans))]
+> SolCatPred$Sol <- solTrainY
+> numSolCatPred <- ncol(SolCatPred) - 1
+> 
+> tests <- apply(SolCatPred[, 1:numSolCatPred], 2,
++                   function(x, y)
++                     {
++                     tStats <- t.test(y ~ x)[c("statistic", "p.value", "estimate")]
++                     unlist(tStats)
++                     },
++                y = solTrainY)
+> ## The results are a matrix with predictors in columns. We reverse this
+> tests <- as.data.frame(t(tests))
+> names(tests) <- c("t.Statistic", "t.test_p.value", "mean0", "mean1")
+> tests$difference <- tests$mean1 - tests$mean0
+> tests
+      t.Statistic t.test_p.value     mean0     mean1   difference
+FP001 -4.02204024   6.287404e-05 -2.978465 -2.451471  0.526993515
+FP002 10.28672686   1.351580e-23 -2.021347 -3.313860 -1.292512617
+FP003 -2.03644225   4.198619e-02 -2.832164 -2.571855  0.260308757
+FP004 -4.94895770   9.551772e-07 -3.128380 -2.427428  0.700951689
+FP005 10.28247538   1.576549e-23 -1.969000 -3.262722 -1.293722323
+FP006 -7.87583806   9.287835e-15 -3.109421 -2.133832  0.975589032
+FP007 -0.88733923   3.751398e-01 -2.759967 -2.646185  0.113781971
+FP008  3.32843788   9.119521e-04 -2.582652 -2.999613 -0.416960797
+FP009 11.49360533   7.467714e-27 -2.249591 -3.926278 -1.676686955
+FP010 -4.11392307   4.973603e-05 -2.824302 -2.232824  0.591478647
+FP011 -7.01680213   1.067782e-11 -2.934645 -1.927353  1.007292306
+FP012 -1.89255407   5.953582e-02 -2.773755 -2.461369  0.312385742
+FP013 11.73267872   1.088092e-24 -2.365485 -4.490696 -2.125210704
+FP014 11.47456176   1.157457e-23 -2.375401 -4.508431 -2.133030370
+FP015 -7.73718733   1.432769e-12 -4.404286 -2.444487  1.959799162
+FP016 -0.61719794   5.377695e-01 -2.733559 -2.631007  0.102551919
+FP017  2.73915987   6.681864e-03 -2.654607 -3.098613 -0.444006259
+FP018  4.26743510   2.806561e-05 -2.643402 -3.215280 -0.571878063
+FP019 -2.31045847   2.207143e-02 -2.766910 -2.370603  0.396306731
+FP020 -3.44119896   7.251032e-04 -2.785806 -2.224912  0.560894171
+FP021  3.35165112   1.009498e-03 -2.642392 -3.272348 -0.629955482
+FP022 -0.66772403   5.051252e-01 -2.728040 -2.637071  0.090969199
+FP023  2.18958532   2.989162e-02 -2.673106 -3.042650 -0.369544057
+FP024 -2.43189276   1.617811e-02 -2.766457 -2.340841  0.425616224
+FP025 -2.68651403   7.981132e-03 -2.771677 -2.312545  0.459131121
+FP026  0.58596455   5.591541e-01 -2.709082 -2.821875 -0.112793485
+FP027 -4.46177875   1.714807e-05 -2.793800 -2.024516  0.769283405
+FP028 -3.36478123   1.011310e-03 -2.791941 -2.101089  0.690852068
+FP029  1.50309317   1.346711e-01 -2.696475 -2.913093 -0.216617374
+FP030 -4.18564626   5.684141e-05 -2.799582 -1.933933  0.865649782
+FP031 -0.19030898   8.494207e-01 -2.721986 -2.683765  0.038221437
+FP032 -2.86824205   5.100440e-03 -2.757832 -2.224429  0.533403438
+FP033 -2.48343886   1.492327e-02 -2.751062 -2.282879  0.468183359
+FP034  0.81786492   4.147985e-01 -2.709737 -2.820263 -0.110526015
+FP035  4.17698556   6.851675e-05 -2.659660 -3.471594 -0.811934339
+FP036 -5.31186085   6.344823e-07 -2.787224 -1.880417  0.906807452
+FP037  1.37213471   1.734895e-01 -2.700271 -2.960000 -0.259728507
+FP038 -2.55044552   1.224045e-02 -2.764833 -2.228293  0.536540459
+FP039  6.83856010   1.396591e-09 -2.588330 -4.332817 -1.744487356
+FP040 -4.96957478   3.640553e-06 -2.788036 -1.771692  1.016343810
+FP041  3.86443922   2.274448e-04 -2.672424 -3.403833 -0.731409091
+FP042 -1.10149897   2.742144e-01 -2.729509 -2.536852  0.192657624
+FP043 -0.18525729   8.535189e-01 -2.721284 -2.680317  0.040966323
+FP044 15.19844350   1.458342e-22 -2.472237 -6.582105 -4.109868127
+FP045  3.26197779   1.781037e-03 -2.678118 -3.403962 -0.725844224
+FP046  7.19096539   1.949765e-12 -2.405146 -3.398700 -0.993554071
+FP047  3.08813847   2.106659e-03 -2.611605 -3.013676 -0.402071305
+FP048  0.78156187   4.354510e-01 -2.703337 -2.826102 -0.122764360
+FP049  9.32620107   1.541509e-16 -2.494036 -4.334828 -1.840791658
+FP050  1.78989997   7.537562e-02 -2.684810 -2.984860 -0.300049387
+FP051  3.85923300   1.590148e-04 -2.656482 -3.224231 -0.567749069
+FP052 -1.37622794   1.707261e-01 -2.736296 -2.542529  0.193767561
+FP053  7.79872544   3.863769e-12 -2.565418 -4.201910 -1.636492479
+FP054  4.71268264   7.815108e-06 -2.656678 -3.474167 -0.817488623
+FP055 -2.15047129   3.539774e-02 -2.743122 -2.285294  0.457828105
+FP056  6.56517336   8.289424e-09 -2.598841 -4.435323 -1.836481186
+FP057  1.55970276   1.207241e-01 -2.686667 -2.952807 -0.266140351
+FP058  1.31266618   1.913070e-01 -2.691483 -2.930000 -0.238517200
+FP059  5.30327181   1.388228e-06 -2.662258 -3.692115 -1.029857320
+FP060 -6.34967826   3.396521e-10 -3.112819 -2.294192  0.818627333
+FP061 -3.23528852   1.258017e-03 -2.903859 -2.489247  0.414612257
+FP062 -4.68040368   3.284921e-06 -2.978056 -2.384856  0.593200306
+FP063 -5.90647947   4.865776e-09 -3.037509 -2.288593  0.748916565
+FP064 -3.19849081   1.427257e-03 -2.887640 -2.481616  0.406023478
+FP065 13.67947483   7.369864e-39 -1.740827 -3.389468 -1.648641212
+FP066 -3.50425986   4.936856e-04 -3.034043 -2.516776  0.517267265
+FP067 -3.71025855   2.192910e-04 -2.894797 -2.430554  0.464242594
+FP068 -4.50468714   7.534223e-06 -2.923921 -2.356221  0.567699992
+FP069 -1.39582672   1.631126e-01 -2.782438 -2.605872  0.176566128
+FP070 11.33500604   6.532630e-27 -2.155840 -3.739142 -1.583301881
+FP071  9.16039412   1.012284e-18 -2.295828 -3.588521 -1.292692775
+FP072 -9.86673490   4.502526e-21 -3.674277 -2.222396  1.451880757
+FP073 -6.31556184   4.773987e-10 -2.972104 -2.154780  0.817323998
+FP074 -3.16365915   1.617158e-03 -2.849299 -2.446958  0.402341137
+FP075 -4.83159241   1.618286e-06 -2.926916 -2.311584  0.615331888
+FP076 18.19671006   2.170836e-57 -1.949953 -4.292756 -2.342803359
+FP077 -0.24434665   8.070283e-01 -2.728715 -2.697082  0.031633203
+FP078 -0.49694487   6.193690e-01 -2.737523 -2.675156  0.062366949
+FP079 12.46647477   2.609452e-32 -1.649763 -3.199207 -1.549444605
+FP080 -4.44534892   1.029202e-05 -2.896848 -2.308160  0.588687940
+FP081  0.11125946   9.114457e-01 -2.714519 -2.729057 -0.014537653
+FP082 12.55490234   3.329065e-32 -1.573824 -3.177143 -1.603319328
+FP083 -6.28835488   5.760827e-10 -2.932735 -2.149385  0.783350551
+FP084 -3.43524930   6.332047e-04 -2.851414 -2.386949  0.464465314
+FP085 10.47209331   1.134762e-22 -2.307585 -3.916008 -1.608423485
+FP086  1.02088695   3.077271e-01 -2.682101 -2.817578 -0.135477406
+FP087 11.07193302   5.850147e-26 -1.684808 -3.107540 -1.422732105
+FP088 -4.82078133   1.873320e-06 -2.891398 -2.233960  0.657438003
+FP089 15.68684642   7.559612e-42 -2.131606 -4.506936 -2.375330025
+FP090  0.72850761   4.666345e-01 -2.693950 -2.792743 -0.098793036
+FP091 -1.97821299   4.847758e-02 -2.777626 -2.515187  0.262438593
+FP092 12.71461669   9.160201e-31 -2.250250 -4.169957 -1.919706549
+FP093  2.40580805   1.652056e-02 -2.636787 -2.972026 -0.335238658
+FP094 -1.08529331   2.783195e-01 -2.751874 -2.607909  0.143965054
+FP095 -4.83150303   1.885749e-06 -2.863571 -2.203780  0.659791524
+FP096 -0.05816460   9.536450e-01 -2.720323 -2.712271  0.008052049
+FP097  9.06740092   4.508890e-18 -2.420977 -3.684420 -1.263443027
+FP098 -3.09495737   2.088014e-03 -2.820538 -2.391460  0.429077754
+FP099  4.51553294   8.153915e-06 -2.575959 -3.203843 -0.627883409
+FP100 -4.26730797   2.354655e-05 -2.846430 -2.293727  0.552702276
+FP101 -3.33565277   9.211008e-04 -2.828760 -2.363022  0.465738108
+FP102  1.25032500   2.119440e-01 -2.683373 -2.857708 -0.174335474
+FP103  2.51185846   1.236590e-02 -2.644038 -2.984808 -0.340770007
+FP104  1.23433987   2.176989e-01 -2.681746 -2.846934 -0.165188360
+FP105  2.56644125   1.063908e-02 -2.640201 -3.003756 -0.363555025
+FP106  2.42187970   1.595574e-02 -2.652367 -2.998297 -0.345929993
+FP107 10.92623859   2.395320e-23 -2.328707 -4.173284 -1.844576915
+FP108 -0.88386799   3.773218e-01 -2.744087 -2.619641  0.124446276
+FP109  1.72666429   8.493856e-02 -2.681392 -2.891845 -0.210453156
+FP110 -4.30633122   2.083157e-05 -2.839272 -2.253622  0.585649074
+FP111  0.07891212   9.371465e-01 -2.716361 -2.727594 -0.011232326
+FP112 13.31169435   4.090297e-31 -2.293512 -4.478541 -2.185028791
+FP113 -4.25438885   2.743420e-05 -2.842824 -2.207527  0.635296648
+FP114  0.38442341   7.009005e-01 -2.711034 -2.759459 -0.048425836
+FP115 -0.49398272   6.216320e-01 -2.730653 -2.663059  0.067594185
+FP116 -3.39726200   7.657795e-04 -2.815911 -2.310055  0.505856814
+FP117  3.16005628   1.769096e-03 -2.623060 -3.157353 -0.534292762
+FP118 -3.88255786   1.272871e-04 -2.835755 -2.226776  0.608979252
+FP119 -0.71996857   4.720764e-01 -2.734485 -2.636839  0.097646215
+FP120 -3.25854728   1.280523e-03 -2.807793 -2.270759  0.537033697
+FP121  0.62156119   5.349141e-01 -2.704487 -2.805188 -0.100701417
+FP122 -2.44169102   1.530759e-02 -2.781836 -2.396154  0.385682632
+FP123  3.52755166   4.929055e-04 -2.628914 -3.165157 -0.536243091
+FP124 -3.58983366   3.953044e-04 -2.806888 -2.261494  0.545394825
+FP125 -2.91655379   3.853055e-03 -2.786364 -2.350743  0.435620393
+FP126 -1.44180023   1.505173e-01 -2.748395 -2.547234  0.201161019
+FP127 -2.66597987   8.213408e-03 -2.773386 -2.381429  0.391957737
+FP128 -3.37747584   8.536233e-04 -2.794086 -2.284752  0.509334647
+FP129  3.28855844   1.192299e-03 -2.642100 -3.193030 -0.550930181
+FP130  1.02990587   3.048783e-01 -2.698555 -2.888900 -0.190345358
+FP131 -0.49682548   6.198471e-01 -2.727954 -2.653583  0.074370939
+FP132 -5.89680424   1.633112e-08 -2.832055 -1.925126  0.906929238
+FP133 -1.83896087   6.756107e-02 -2.757100 -2.451750  0.305349880
+FP134  3.16620016   1.761695e-03 -2.661506 -3.110000 -0.448493976
+FP135 -2.94236705   3.709259e-03 -2.783827 -2.266667  0.517160048
+FP136 -2.02006233   4.501990e-02 -2.761938 -2.403304  0.358633451
+FP137 -0.07855180   9.374873e-01 -2.720131 -2.706636  0.013494433
+FP138 -1.44829927   1.496787e-01 -2.748083 -2.483302  0.264780953
+FP139 -0.22212826   8.246439e-01 -2.721936 -2.680897  0.041038417
+FP140 -1.86990507   6.355486e-02 -2.758036 -2.403962  0.354073239
+FP141  4.15441700   4.792655e-05 -2.650655 -3.232523 -0.581867761
+FP142 -2.92307611   4.047862e-03 -2.779233 -2.224519  0.554713355
+FP143  0.83414756   4.061300e-01 -2.705904 -2.862338 -0.156433772
+FP144 -4.98991305   1.904653e-06 -2.819214 -1.852424  0.966789373
+FP145 -3.99831545   1.002597e-04 -2.787077 -2.128990  0.658087566
+FP146  6.08904552   1.064009e-08 -2.608687 -3.675000 -1.066313013
+FP147 -2.98364059   3.376138e-03 -2.776357 -2.226800  0.549557227
+FP148 -4.00444775   1.101041e-04 -2.780300 -2.073012  0.707287491
+FP149  9.67498002   8.530838e-16 -2.479225 -5.125930 -2.646704799
+FP150 -1.59224059   1.145443e-01 -2.742808 -2.435467  0.307341553
+FP151 -1.68674372   9.608846e-02 -2.736013 -2.423019  0.312994495
+FP152  2.02103329   4.549820e-02 -2.692325 -3.012308 -0.319982377
+FP153  0.83775227   4.044086e-01 -2.703900 -2.892432 -0.188532775
+FP154 -0.18701160   8.526043e-01 -2.720525 -2.668889  0.051635701
+FP155  4.93743429   3.813516e-06 -2.653412 -3.592273 -0.938860298
+FP156  2.70254904   8.178498e-03 -2.685045 -3.160896 -0.475850274
+FP157 -1.19798365   2.351567e-01 -2.738105 -2.423220  0.314885042
+FP158 -3.18371959   2.293303e-03 -2.757078 -2.039020  0.718058170
+FP159  2.90626659   4.444806e-03 -2.687590 -3.127313 -0.439722935
+FP160  0.72930617   4.673596e-01 -2.711400 -2.816308 -0.104908144
+FP161 -8.02084404   8.158474e-12 -2.826779 -1.193333  1.633445946
+FP162  9.05654884   7.502729e-19 -2.147208 -3.300849 -1.153640924
+FP163 -4.73411111   2.565152e-06 -3.009759 -2.398455  0.611304290
+FP164 11.15556043   6.131703e-27 -1.830706 -3.245042 -1.414335661
+FP165 -3.26163144   1.150990e-03 -2.862294 -2.450602  0.411691613
+FP166  6.01599552   3.059094e-09 -2.441541 -3.277905 -0.836363881
+FP167 -3.77468033   1.718080e-04 -2.874742 -2.398718  0.476023835
+FP168 12.78784085   6.302482e-34 -1.659686 -3.250521 -1.590835792
+FP169 10.79840624   1.952902e-22 -2.370413 -4.241017 -1.870603512
+FP170  1.45059296   1.480425e-01 -2.674961 -2.911943 -0.236981517
+FP171 -3.56151646   4.354270e-04 -2.810722 -2.266398  0.544324003
+FP172 13.04070659   8.112523e-28 -2.345390 -4.809931 -2.464540221
+FP173  2.68918003   7.770466e-03 -2.653554 -3.111556 -0.458001634
+FP174  0.94721964   3.446525e-01 -2.699492 -2.845806 -0.146314311
+FP175  0.01020115   9.918704e-01 -2.718360 -2.719922 -0.001562215
+FP176 -2.29447613   2.298911e-02 -2.766395 -2.374310  0.392084865
+FP177 -1.08253877   2.802959e-01 -2.737548 -2.580609  0.156939151
+FP178  3.27582610   1.258481e-03 -2.656782 -3.167739 -0.510956834
+FP179  0.85670987   3.931634e-01 -2.703846 -2.854409 -0.150562448
+FP180 -2.83913345   5.188161e-03 -2.773274 -2.263235  0.510039146
+FP181  6.24259165   6.005980e-09 -2.617726 -3.695281 -1.077554681
+FP182 -2.11887211   3.595632e-02 -2.755239 -2.384255  0.370983887
+FP183 -2.62186301   1.015591e-02 -2.755210 -2.271250  0.483960466
+FP184 10.24979020   9.572172e-17 -2.493318 -5.171000 -2.677681975
+FP185  3.21519455   1.718715e-03 -2.667230 -3.270000 -0.602770115
+FP186 -2.10893733   3.756740e-02 -2.749818 -2.342740  0.407078042
+FP187 -0.14233858   8.871705e-01 -2.721122 -2.685942  0.035180420
+FP188 -2.76497219   7.083803e-03 -2.760011 -2.153692  0.606318979
+FP189  0.29230393   7.707177e-01 -2.713884 -2.774932 -0.061047680
+FP190  8.23796541   2.799252e-12 -2.574785 -4.556522 -1.981737159
+FP191 -1.62000293   1.089976e-01 -2.742364 -2.404627  0.337737388
+FP192  0.55100083   5.833593e-01 -2.711377 -2.829310 -0.117932965
+FP193 11.06173597   1.595927e-16 -2.525146 -5.642881 -3.117735616
+FP194 -1.03294441   3.047671e-01 -2.728916 -2.553214  0.175701915
+FP195 -5.88072667   1.035398e-07 -2.786495 -1.672759  1.113736340
+FP196  6.42707826   1.269199e-08 -2.651126 -3.838889 -1.187762913
+FP197  3.82944792   3.167065e-04 -2.670555 -3.583800 -0.913245061
+FP198 -3.87872401   2.598433e-04 -2.776165 -1.761852  1.014313143
+FP199  0.59118217   5.569865e-01 -2.711578 -2.859333 -0.147754967
+FP200  5.15622561   3.020793e-06 -2.668319 -3.685106 -1.016787799
+FP201 -3.92629512   2.100852e-04 -2.757414 -2.018600  0.738813984
+FP202  5.92935333   6.082278e-09 -2.496969 -3.357143 -0.860174019
+FP203  1.09341446   2.759667e-01 -2.695582 -2.896147 -0.200564841
+FP204  2.86078975   4.868444e-03 -2.672159 -3.141702 -0.469543435
+FP205  5.61427744   2.488511e-07 -2.605564 -4.057838 -1.452273414
+FP206  3.58353985   6.162975e-04 -2.674519 -3.409474 -0.734954669
+FP207  8.34894566   1.153650e-11 -2.595151 -4.768704 -2.173553202
+FP208  1.37823055   1.702203e-01 -2.690237 -2.942056 -0.251819108
+> 
+> ## Create a volcano plot
+> 
+> xyplot(-log10(t.test_p.value) ~ difference,
++        data = tests,
++        xlab = "Mean With Structure - Mean Without Structure",
++        ylab = "-log(p-Value)",
++        type = "p")
+> 
+> ################################################################################
+> ### Section 18.2 Categorical Outcomes
+> 
+> ## Load the segmentation data
+> 
+> data(segmentationData)
+> segTrain <- subset(segmentationData, Case == "Train")
+> segTrain$Case <- segTrain$Cell <- NULL
+> 
+> segTest <- subset(segmentationData, Case != "Train")
+> segTest$Case <- segTest$Cell <- NULL
+> 
+> ## Compute the areas under the ROC curve
+> aucVals <- filterVarImp(x = segTrain[, -1], y = segTrain$Class)
+> aucVals$Predictor <- rownames(aucVals)
+> 
+> ## Cacluate the t-tests as before but with x and y switched
+> segTests <- apply(segTrain[, -1], 2,
++                   function(x, y)
++                     {
++                     tStats <- t.test(x ~ y)[c("statistic", "p.value", "estimate")]
++                     unlist(tStats)
++                     },
++                y = segTrain$Class)
+> segTests <- as.data.frame(t(segTests))
+> names(segTests) <- c("t.Statistic", "t.test_p.value", "mean0", "mean1")
+> segTests$Predictor <- rownames(segTests)
+> 
+> ## Fit a random forest model and get the importance scores
+> library(randomForest)
+randomForest 4.6-7
+Type rfNews() to see new features/changes/bug fixes.
+> set.seed(791)
+> rfImp <- randomForest(Class ~ ., data = segTrain, 
++                       ntree = 2000, 
++                       importance = TRUE)
+> rfValues <- data.frame(RF = importance(rfImp)[, "MeanDecreaseGini"],
++                        Predictor = rownames(importance(rfImp)))
+> 
+> ## Now compute the Relief scores
+> set.seed(791)
+> 
+> ReliefValues <- attrEval(Class ~ ., data = segTrain,
++                          estimator="ReliefFequalK", ReliefIterations = 50)
+> ReliefValues <- data.frame(Relief = ReliefValues,
++                            Predictor = names(ReliefValues))
+> 
+> ## and the MIC statistics
+> set.seed(791)
+> segMIC <- mine(x = segTrain[, -1],
++                ## Pass the outcome as 0/1
++                y = ifelse(segTrain$Class == "PS", 1, 0))$MIC
+> segMIC <- data.frame(Predictor = rownames(segMIC),
++                   MIC = segMIC[,1])
+> 
+> 
+> rankings <- merge(segMIC, ReliefValues)
+> rankings <- merge(rankings, rfValues)
+> rankings <- merge(rankings, segTests)
+> rankings <- merge(rankings, aucVals)
+> rankings
+                 Predictor         MIC       Relief        RF  t.Statistic
+1                 AngleCh1 0.131057008  0.002287557  4.730963  -0.21869850
+2                  AreaCh1 0.108083908  0.016041257  4.315317  -0.93160658
+3              AvgIntenCh1 0.292046076  0.071057681 18.865802 -11.75400848
+4              AvgIntenCh2 0.329484594  0.150684824 21.857848 -16.09400822
+5              AvgIntenCh3 0.135443794  0.018172519  5.135363  -0.14752973
+6              AvgIntenCh4 0.166545039 -0.007167866  5.434737  -6.23725001
+7   ConvexHullAreaRatioCh1 0.299627157  0.035983697 19.093048  14.22756193
+8  ConvexHullPerimRatioCh1 0.254931744  0.041865999 12.624038 -13.86697029
+9      DiffIntenDensityCh1 0.239224382  0.038582763  7.335741  -9.81721615
+10     DiffIntenDensityCh3 0.133084659  0.010830941  6.647198   1.48785690
+11     DiffIntenDensityCh4 0.147643832  0.042352546  5.386981  -5.54840221
+12         EntropyIntenCh1 0.261097110  0.129280729 13.867582 -14.04326173
+13         EntropyIntenCh3 0.172122729  0.039687246  5.127465   6.94689541
+14         EntropyIntenCh4 0.185625627  0.021260676  5.742739  -9.03621024
+15           EqCircDiamCh1 0.108083908  0.038820971  4.185607  -1.85186912
+16         EqEllipseLWRCh1 0.212579943  0.016550609  5.708705   9.83868863
+17   EqEllipseOblateVolCh1 0.122276159  0.010367074  3.906543   1.35616134
+18  EqEllipseProlateVolCh1 0.169674904 -0.005386670  6.018121  -1.29243801
+19         EqSphereAreaCh1 0.108083908  0.016110539  4.183567  -0.93273061
+20          EqSphereVolCh1 0.108083908  0.003440003  4.133475  -0.04348657
+21          FiberAlign2Ch3 0.177116842 -0.002628403  4.373886   3.65095007
+22          FiberAlign2Ch4 0.149937844  0.016047962  4.868552   2.07009183
+23          FiberLengthCh1 0.220505513  0.050610471  8.368712   9.26429955
+24           FiberWidthCh1 0.368720274  0.107691201 33.371913 -18.96852051
+25         IntenCoocASMCh3 0.196466490  0.024738010  7.298595  -7.95107008
+26         IntenCoocASMCh4 0.147981004  0.005574684  3.734085   4.51016239
+27    IntenCoocContrastCh3 0.231500707  0.021282305  8.438533  13.20540372
+28    IntenCoocContrastCh4 0.135150335 -0.002605380  4.567712   1.02551789
+29     IntenCoocEntropyCh3 0.202905819  0.039769279  6.354566   9.62738946
+30     IntenCoocEntropyCh4 0.148928924  0.042214966  4.234247  -5.73801017
+31         IntenCoocMaxCh3 0.193078547  0.039834486  6.865277 -10.01109754
+32         IntenCoocMaxCh4 0.152580596  0.064488810  3.966995   5.02868895
+33            KurtIntenCh1 0.200874103  0.003243188  7.095402   3.18226166
+34            KurtIntenCh3 0.135694293  0.010944913  4.237905  -2.46783420
+35            KurtIntenCh4 0.152775633  0.011328311  5.339427   4.39807449
+36               LengthCh1 0.149378763  0.044483732  4.235474   5.28480181
+37      NeighborAvgDistCh1 0.123412342  0.023330722  4.266566  -0.46614250
+38      NeighborMinDistCh1 0.125623472  0.007850922  5.152365   0.80769702
+39      NeighborVarDistCh1 0.124259322  0.016447793  4.286239   0.29886752
+40                PerimCh1 0.170013515  0.025272254  4.115593   6.18542523
+41             ShapeBFRCh1 0.235667275  0.005194794  9.782458 -13.25311412
+42             ShapeLWRCh1 0.183599199  0.029568271  4.745873   8.40241429
+43             ShapeP2ACh1 0.332238080  0.073795605 19.362332  14.75801555
+44            SkewIntenCh1 0.259680600  0.085229983 13.628434   9.66411304
+45            SkewIntenCh3 0.149153858  0.056669970  4.244103  -3.76453794
+46            SkewIntenCh4 0.152202895  0.002508761  5.478398   6.46619794
+47       SpotFiberCountCh3 0.005721744 -0.005692308  1.793200  -0.53238018
+48       SpotFiberCountCh4 0.019496167 -0.015192982  2.948225   2.98634139
+49           TotalIntenCh1 0.304429766  0.045548534 20.916993  -8.20041297
+50           TotalIntenCh2 0.400952572  0.185416030 41.617068 -14.54087193
+51           TotalIntenCh3 0.115771733  0.015068883  5.402005  -0.46828755
+52           TotalIntenCh4 0.186643156  0.006071748  5.712561  -5.64791505
+53             VarIntenCh1 0.241235863  0.045687478  9.259561 -10.40110966
+54             VarIntenCh3 0.150238051  0.002815999  5.176123  -2.44172596
+55             VarIntenCh4 0.171222193  0.001547820  5.981325  -4.83455579
+56                WidthCh1 0.146204548  0.021560423  5.113884  -1.59227638
+57               XCentroid 0.106662637 -0.037877551  4.220162   1.10633278
+58               YCentroid 0.119516938  0.055209622  4.908536   2.19081435
+   t.test_p.value        mean0        mean1        PS        WS
+1    8.269443e-01 9.086539e+01 9.157148e+01 0.5025967 0.5025967
+2    3.517830e-01 3.205519e+02 3.329249e+02 0.5709170 0.5709170
+3    4.819837e-28 7.702212e+01 2.146922e+02 0.7662375 0.7662375
+4    2.530403e-50 1.324405e+02 2.778397e+02 0.7866146 0.7866146
+5    8.827553e-01 9.578766e+01 9.671147e+01 0.5214098 0.5214098
+6    7.976250e-10 1.168287e+02 1.795797e+02 0.6473814 0.6473814
+7    5.895088e-42 1.270408e+00 1.114054e+00 0.7815519 0.7815519
+8    4.644231e-40 8.714806e-01 9.310403e-01 0.7547844 0.7547844
+9    6.509740e-21 6.055821e+01 9.601373e+01 0.7161591 0.7161591
+10   1.371842e-01 7.753072e+01 7.104993e+01 0.5427353 0.5427353
+11   4.178896e-08 7.508542e+01 1.061125e+02 0.6294704 0.6294704
+12   5.145995e-40 6.364841e+00 7.004622e+00 0.7565169 0.7565169
+13   8.836060e-12 5.704662e+00 5.014508e+00 0.6340145 0.6340145
+14   9.775620e-19 5.192365e+00 6.023039e+00 0.6661861 0.6661861
+15   6.437960e-02 1.940093e+01 2.002646e+01 0.5709170 0.5709170
+16   7.218411e-22 2.371177e+00 1.758240e+00 0.6965915 0.6965915
+17   1.753561e-01 7.632288e+02 6.866693e+02 0.5045568 0.5045568
+18   1.965213e-01 3.543481e+02 3.920429e+02 0.6301870 0.6301870
+19   3.512025e-01 1.284179e+03 1.333731e+03 0.5709170 0.5709170
+20   9.653226e-01 5.017110e+03 5.033648e+03 0.5709170 0.5709170
+21   2.770065e-04 1.479185e+00 1.421565e+00 0.5690728 0.5690728
+22   3.873106e-02 1.444148e+00 1.412867e+00 0.5421535 0.5421535
+23   1.239044e-19 3.991835e+01 2.819142e+01 0.7007984 0.7007984
+24   1.162284e-64 8.691444e+00 1.282684e+01 0.8355127 0.8355127
+25   1.067683e-14 7.373161e-02 1.559897e-01 0.6956093 0.6956093
+26   7.290850e-06 1.131789e-01 7.724074e-02 0.5878438 0.5878438
+27   7.794899e-37 1.163875e+01 6.292079e+00 0.7214199 0.7214199
+28   3.053656e-01 7.700191e+00 7.343397e+00 0.5358642 0.5358642
+29   1.282007e-20 6.201308e+00 5.216667e+00 0.6891345 0.6891345
+30   1.313352e-08 5.545934e+00 6.032306e+00 0.6073356 0.6073356
+31   4.418432e-22 1.900393e-01 3.245564e-01 0.6944627 0.6944627
+32   5.990072e-07 2.707207e-01 2.131262e-01 0.5892938 0.5892938
+33   1.506054e-03 1.208829e+00 3.868323e-01 0.6711982 0.6711982
+34   1.388162e-02 3.121647e+00 4.480168e+00 0.5513936 0.5513936
+35   1.210957e-05 1.388322e+00 2.421078e-01 0.6046335 0.6046335
+36   1.571520e-07 3.237304e+01 2.839838e+01 0.6015142 0.6015142
+37   6.412508e-01 2.294382e+02 2.307292e+02 0.5047676 0.5047676
+38   4.194740e-01 3.020875e+01 2.962558e+01 0.5018274 0.5018274
+39   7.651196e-01 1.046047e+02 1.042038e+02 0.5072546 0.5072546
+40   9.075622e-10 9.721959e+01 8.203652e+01 0.6200196 0.6200196
+41   6.819382e-37 5.630603e-01 6.406694e-01 0.7319836 0.7319836
+42   1.498789e-16 1.968091e+00 1.601640e+00 0.6607778 0.6607778
+43   9.265729e-45 2.380621e+00 1.606325e+00 0.7930978 0.7930978
+44   6.631564e-21 8.687084e-01 4.124373e-01 0.7253275 0.7253275
+45   1.819323e-04 1.429871e+00 1.711829e+00 0.5732881 0.5732881
+46   1.592246e-10 1.069003e+00 7.366442e-01 0.6193873 0.6193873
+47   5.946089e-01 1.915094e+00 1.970509e+00 0.5173630 0.5173630
+48   2.894728e-03 7.224843e+00 6.477212e+00 0.4619775 0.4619775
+49   1.624963e-15 2.494150e+04 6.265354e+04 0.7895358 0.7895358
+50   3.385024e-43 3.858694e+04 7.665351e+04 0.8012840 0.8012840
+51   6.397155e-01 2.685926e+04 2.770986e+04 0.5094972 0.5094972
+52   2.290183e-08 3.466429e+04 5.217025e+04 0.6599073 0.6599073
+53   5.662429e-23 5.142099e+01 1.136596e+02 0.7322365 0.7322365
+54   1.488950e-02 9.519852e+01 1.127093e+02 0.5330821 0.5330821
+55   1.632212e-06 1.063653e+02 1.430475e+02 0.6322357 0.6322357
+56   1.116486e-01 1.754162e+01 1.813792e+01 0.5799484 0.5799484
+57   2.689098e-01 2.698852e+02 2.599759e+02 0.5216669 0.5216669
+58   2.875168e-02 1.842972e+02 1.691475e+02 0.5407878 0.5407878
+> 
+> rankings$channel <- "Channel 1"
+> rankings$channel[grepl("Ch2$", rankings$Predictor)] <- "Channel 2"
+> rankings$channel[grepl("Ch3$", rankings$Predictor)] <- "Channel 3"
+> rankings$channel[grepl("Ch4$", rankings$Predictor)] <- "Channel 4"
+> rankings$t.Statistic <- abs(rankings$t.Statistic)
+> 
+> splom(~rankings[, c("PS", "t.Statistic", "RF", "Relief", "MIC")],
++       groups = rankings$channel,
++       varnames = c("ROC\nAUC", "Abs\nt-Stat", "Random\nForest", "Relief", "MIC"),
++       auto.key = list(columns = 2))
+> 
+> 
+> ## Load the grant data. A script to create and save these data is contained
+> ## in the same directory as this file.
+> 
+> load("grantData.RData")
+> 
+> dataSubset <- training[pre2008, c("Sponsor62B", "ContractValueBandUnk", "RFCD240302")]
+> 
+> ## This is a simple function to compute several statistics for binary predictors
+> tableCalcs <- function(x, y)
++   {
++   tab <- table(x, y)
++   fet <- fisher.test(tab)
++   out <- c(OR = fet$estimate,
++            P = fet$p.value,
++            Gain = attrEval(y ~ x, estimator = "GainRatio"))
++   }
+> 
+> ## lapply() is used to execute the function on each column
+> tableResults <- lapply(dataSubset, tableCalcs, y = training[pre2008, "Class"])
+> 
+> ## The results come back as a list of vectors, and "rbind" is used to join
+> ## then together as rows of a table
+> tableResults <- do.call("rbind", tableResults)
+> tableResults
+                     OR.odds ratio             P       Gain.x
+Sponsor62B                6.040826  2.643795e-07 0.0472613504
+ContractValueBandUnk      6.294236 1.718209e-263 0.1340764356
+RFCD240302                1.097565  8.515664e-01 0.0001664263
+> 
+> ## The permuted Relief scores can be computed using a function from the
+> ## AppliedPredictiveModeling package. 
+> 
+> permuted <- permuteRelief(x = training[pre2008, c("Sponsor62B", "Day", "NumCI")], 
++                           y = training[pre2008, "Class"],
++                           nperm = 500,
++                           ### the remaining options are passed to attrEval()
++                           estimator="ReliefFequalK", 
++                           ReliefIterations= 50)
+> 
+> ## The original Relief scores:
+> permuted$observed
+  Sponsor62B          Day        NumCI 
+ 0.000000000  0.036490637 -0.009047619 
+> 
+> ## The number of standard deviations away from the permuted mean:
+> permuted$standardized
+ Sponsor62B         Day       NumCI 
+-0.08258544  4.50898453 -1.07569741 
+> 
+> ## The distributions of the scores if there were no relationship between the
+> ## predictors and outcomes
+> 
+> histogram(~value|Predictor, 
++           data = permuted$permutations, 
++           xlim = extendrange(permuted$permutations$value),
++           xlab = "Relief Score")
+> 
+> 
+> ################################################################################
+> ### Session Information
+> 
+> sessionInfo()
+R version 3.0.0 RC (2013-03-27 r62426)
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] randomForest_4.6-7               minerva_1.3                     
+ [3] pROC_1.5.4                       caret_5.16-04                   
+ [5] lattice_0.20-15                  foreach_1.4.0                   
+ [7] AppliedPredictiveModeling_1.01-1 reshape2_1.2.2                  
+ [9] plyr_1.8                         MASS_7.3-26                     
+[11] CORElearn_0.9.41                 rpart_4.1-1                     
+[13] cluster_1.14.4                  
+
+loaded via a namespace (and not attached):
+[1] codetools_0.2-8 grid_3.0.0      iterators_1.0.6 parallel_3.0.0 
+[5] stringr_0.6.2   tools_3.0.0    
+> 
+> q("no")
+> proc.time()
+   user  system elapsed 
+ 78.549   0.624  79.162 

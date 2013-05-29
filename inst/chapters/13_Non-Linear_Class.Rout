@@ -1,0 +1,1238 @@
+
+R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+Copyright (C) 2013 The R Foundation for Statistical Computing
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> ################################################################################
+> ### R code from Applied Predictive Modeling (2013) by Kuhn and Johnson.
+> ### Copyright 2013 Kuhn and Johnson
+> ### Web Page: http://www.appliedpredictivemodeling.com
+> ### Contact: Max Kuhn (mxkuhn@gmail.com) 
+> ###
+> ### Chapter 13 Non-Linear Classification Models
+> ###
+> ### Required packages: AppliedPredictiveModeling, caret, doMC (optional) 
+> ###                    kernlab, klaR, lattice, latticeExtra, MASS, mda, nnet,
+> ###                    pROC
+> ###
+> ### Data used: The grant application data. See the file 'CreateGrantData.R'
+> ###
+> ### Notes: 
+> ### 1) This code is provided without warranty.
+> ###
+> ### 2) This code should help the user reproduce the results in the
+> ### text. There will be differences between this code and what is is
+> ### the computing section. For example, the computing sections show
+> ### how the source functions work (e.g. randomForest() or plsr()),
+> ### which were not directly used when creating the book. Also, there may be 
+> ### syntax differences that occur over time as packages evolve. These files 
+> ### will reflect those changes.
+> ###
+> ### 3) In some cases, the calculations in the book were run in 
+> ### parallel. The sub-processes may reset the random number seed.
+> ### Your results may slightly vary.
+> ###
+> ################################################################################
+> 
+> ################################################################################
+> ### Section 13.1 Nonlinear Discriminant Analysis
+> 
+> 
+> load("grantData.RData")
+> 
+> library(caret)
+Loading required package: cluster
+Loading required package: foreach
+Loading required package: lattice
+Loading required package: plyr
+Loading required package: reshape2
+> 
+> ### Optional: parallel processing can be used via the 'do' packages,
+> ### such as doMC, doMPI etc. We used doMC (not on Windows) to speed
+> ### up the computations.
+>  
+> ### WARNING: Be aware of how much memory is needed to parallel
+> ### process. It can very quickly overwhelm the available hardware. We
+> ### estimate the memory usage (VSIZE = total memory size) to be 
+> ### 2700M/core.
+> 
+> library(doMC)
+Loading required package: iterators
+Loading required package: parallel
+> registerDoMC(12)
+> 
+> ## This control object will be used across multiple models so that the
+> ## data splitting is consistent
+> 
+> ctrl <- trainControl(method = "LGOCV",
++                      summaryFunction = twoClassSummary,
++                      classProbs = TRUE,
++                      index = list(TrainSet = pre2008),
++                      savePredictions = TRUE)
+> 
+> set.seed(476)
+> mdaFit <- train(x = training[,reducedSet], 
++                 y = training$Class,
++                 method = "mda",
++                 metric = "ROC",
++                 tries = 40,
++                 tuneGrid = expand.grid(.subclasses = 1:8),
++                 trControl = ctrl)
+Loading required package: pROC
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following object is masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Loading required package: class
+Loading required package: class
+Loading required package: class
+Loading required package: class
+Loading required package: class
+Loading required package: class
+Loading required package: class
+Loading required package: class
+Loading required package: class
+Warning message:
+In nominalTrainWorkflow(dat = trainData, info = trainInfo, method = method,  :
+  There were missing values in resampled performance measures.
+> mdaFit
+8190 samples
+ 252 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+No pre-processing
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  subclasses  ROC    Sens   Spec 
+  1           0.887  0.811  0.822
+  2           0.865  0.789  0.813
+  3           0.831  0.835  0.726
+  4           0.845  0.791  0.78 
+  5           0.851  0.835  0.737
+  6           0.822  0.733  0.782
+  7           0.726  0.554  0.803
+  8           NaN    NaN    NaN  
+
+ROC was used to select the optimal model using  the largest value.
+The final value used for the model was subclasses = 1. 
+> 
+> mdaFit$results <- mdaFit$results[!is.na(mdaFit$results$ROC),]                
+> mdaFit$pred <- merge(mdaFit$pred,  mdaFit$bestTune)
+> mdaCM <- confusionMatrix(mdaFit, norm = "none")
+> mdaCM
+Repeated Train/Test Splits Estimated (1 reps, 0.75%) Confusion Matrix 
+
+(entries are un-normalized counts)
+ 
+Confusion Matrix and Statistics
+
+              Reference
+Prediction     successful unsuccessful
+  successful          462          176
+  unsuccessful        108          811
+                                          
+               Accuracy : 0.8176          
+                 95% CI : (0.7975, 0.8365)
+    No Information Rate : 0.6339          
+    P-Value [Acc > NIR] : < 2.2e-16       
+                                          
+                  Kappa : 0.6167          
+ Mcnemar's Test P-Value : 7.017e-05       
+                                          
+            Sensitivity : 0.8105          
+            Specificity : 0.8217          
+         Pos Pred Value : 0.7241          
+         Neg Pred Value : 0.8825          
+             Prevalence : 0.3661          
+         Detection Rate : 0.2967          
+   Detection Prevalence : 0.4098          
+                                          
+       'Positive' Class : successful      
+                                          
+
+> 
+> mdaRoc <- roc(response = mdaFit$pred$obs,
++               predictor = mdaFit$pred$successful,
++               levels = rev(levels(mdaFit$pred$obs)))
+> mdaRoc
+
+Call:
+roc.default(response = mdaFit$pred$obs, predictor = mdaFit$pred$successful,     levels = rev(levels(mdaFit$pred$obs)))
+
+Data: mdaFit$pred$successful in 987 controls (mdaFit$pred$obs unsuccessful) < 570 cases (mdaFit$pred$obs successful).
+Area under the curve: 0.8874
+> 
+> update(plot(mdaFit,
++             ylab = "ROC AUC (2008 Hold-Out Data)"))
+> 
+> ################################################################################
+> ### Section 13.2 Neural Networks
+> 
+> nnetGrid <- expand.grid(.size = 1:10, .decay = c(0, .1, 1, 2))
+> maxSize <- max(nnetGrid$.size)
+> 
+> 
+> ## Four different models are evaluate based on the data pre-processing and 
+> ## whethera single or multiple models are used
+> 
+> set.seed(476)
+> nnetFit <- train(x = training[,reducedSet], 
++                  y = training$Class,
++                  method = "nnet",
++                  metric = "ROC",
++                  preProc = c("center", "scale"),
++                  tuneGrid = nnetGrid,
++                  trace = FALSE,
++                  maxit = 2000,
++                  MaxNWts = 1*(maxSize * (length(reducedSet) + 1) + maxSize + 1),
++                  trControl = ctrl)
+> nnetFit
+8190 samples
+ 252 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+Pre-processing: centered, scaled 
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  size  decay  ROC    Sens   Spec 
+  1     0      0.74   0.567  0.912
+  1     0.1    0.875  0.811  0.823
+  1     1      0.85   0.775  0.813
+  1     2      0.852  0.781  0.814
+  2     0      0.815  0.668  0.867
+  2     0.1    0.862  0.663  0.86 
+  2     1      0.866  0.719  0.843
+  2     2      0.873  0.781  0.833
+  3     0      0.8    0.844  0.751
+  3     0.1    0.842  0.732  0.776
+  3     1      0.866  0.767  0.795
+  3     2      0.884  0.795  0.809
+  4     0      0.8    0.677  0.774
+  4     0.1    0.828  0.786  0.72 
+  4     1      0.87   0.811  0.78 
+  4     2      0.865  0.746  0.831
+  5     0      0.777  0.795  0.736
+  5     0.1    0.773  0.665  0.774
+  5     1      0.836  0.735  0.788
+  5     2      0.845  0.751  0.779
+  6     0      0.829  0.696  0.856
+  6     0.1    0.824  0.726  0.799
+  6     1      0.856  0.761  0.796
+  6     2      0.859  0.719  0.829
+  7     0      0.841  0.751  0.818
+  7     0.1    0.822  0.756  0.76 
+  7     1      0.838  0.749  0.77 
+  7     2      0.865  0.746  0.817
+  8     0      0.836  0.74   0.806
+  8     0.1    0.829  0.753  0.764
+  8     1      0.846  0.774  0.766
+  8     2      0.852  0.753  0.794
+  9     0      0.869  0.779  0.804
+  9     0.1    0.827  0.725  0.768
+  9     1      0.858  0.756  0.802
+  9     2      0.857  0.732  0.825
+  10    0      0.838  0.742  0.788
+  10    0.1    0.839  0.721  0.796
+  10    1      0.846  0.725  0.803
+  10    2      0.857  0.76   0.793
+
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were size = 3 and decay = 2. 
+> 
+> set.seed(476)
+> nnetFit2 <- train(x = training[,reducedSet], 
++                   y = training$Class,
++                   method = "nnet",
++                   metric = "ROC",
++                   preProc = c("center", "scale", "spatialSign"),
++                   tuneGrid = nnetGrid,
++                   trace = FALSE,
++                   maxit = 2000,
++                   MaxNWts = 1*(maxSize * (length(reducedSet) + 1) + maxSize + 1),
++                   trControl = ctrl)
+> nnetFit2
+8190 samples
+ 252 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+Pre-processing: centered, scaled, spatial sign transformation 
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  size  decay  ROC    Sens   Spec 
+  1     0      0.786  0.811  0.762
+  1     0.1    0.863  0.784  0.809
+  1     1      0.874  0.807  0.805
+  1     2      0.88   0.804  0.807
+  2     0      0.859  0.782  0.8  
+  2     0.1    0.892  0.782  0.861
+  2     1      0.885  0.8    0.821
+  2     2      0.882  0.805  0.811
+  3     0      0.847  0.732  0.827
+  3     0.1    0.881  0.726  0.867
+  3     1      0.895  0.795  0.829
+  3     2      0.883  0.804  0.811
+  4     0      0.789  0.818  0.714
+  4     0.1    0.874  0.709  0.852
+  4     1      0.898  0.798  0.84 
+  4     2      0.883  0.804  0.812
+  5     0      0.876  0.735  0.835
+  5     0.1    0.868  0.754  0.828
+  5     1      0.902  0.788  0.857
+  5     2      0.883  0.804  0.812
+  6     0      0.851  0.754  0.798
+  6     0.1    0.844  0.728  0.816
+  6     1      0.902  0.811  0.851
+  6     2      0.883  0.804  0.812
+  7     0      0.767  0.711  0.788
+  7     0.1    0.847  0.689  0.836
+  7     1      0.903  0.796  0.849
+  7     2      0.883  0.804  0.813
+  8     0      0.816  0.665  0.828
+  8     0.1    0.867  0.728  0.835
+  8     1      0.902  0.789  0.857
+  8     2      0.883  0.804  0.813
+  9     0      0.823  0.832  0.717
+  9     0.1    0.88   0.754  0.853
+  9     1      0.902  0.788  0.857
+  9     2      0.883  0.804  0.813
+  10    0      0.831  0.814  0.774
+  10    0.1    0.862  0.732  0.839
+  10    1      0.903  0.789  0.852
+  10    2      0.883  0.804  0.812
+
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were size = 10 and decay = 1. 
+> 
+> nnetGrid$.bag <- FALSE
+> 
+> set.seed(476)
+> nnetFit3 <- train(x = training[,reducedSet], 
++                   y = training$Class,
++                   method = "avNNet",
++                   metric = "ROC",
++                   preProc = c("center", "scale"),
++                   tuneGrid = nnetGrid,
++                   repeats = 10,
++                   trace = FALSE,
++                   maxit = 2000,
++                   MaxNWts = 10*(maxSize * (length(reducedSet) + 1) + maxSize + 1),
++                   allowParallel = FALSE, ## this will cause to many workers to be launched.
++                   trControl = ctrl)
+> nnetFit3
+8190 samples
+ 252 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+Pre-processing: centered, scaled 
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  size  decay  ROC    Sens   Spec 
+  1     0      0.883  0.853  0.775
+  1     0.1    0.854  0.774  0.806
+  1     1      0.847  0.777  0.81 
+  1     2      0.851  0.777  0.81 
+  2     0      0.888  0.832  0.772
+  2     0.1    0.878  0.791  0.826
+  2     1      0.895  0.798  0.837
+  2     2      0.896  0.789  0.871
+  3     0      0.886  0.833  0.77 
+  3     0.1    0.883  0.795  0.821
+  3     1      0.897  0.795  0.843
+  3     2      0.899  0.795  0.855
+  4     0      0.888  0.847  0.763
+  4     0.1    0.892  0.812  0.834
+  4     1      0.897  0.795  0.852
+  4     2      0.898  0.793  0.856
+  5     0      0.891  0.818  0.798
+  5     0.1    0.878  0.789  0.806
+  5     1      0.901  0.814  0.844
+  5     2      0.895  0.8    0.851
+  6     0      0.889  0.847  0.783
+  6     0.1    0.882  0.789  0.825
+  6     1      0.898  0.798  0.841
+  6     2      0.899  0.804  0.842
+  7     0      0.89   0.825  0.791
+  7     0.1    0.882  0.789  0.811
+  7     1      0.9    0.804  0.845
+  7     2      0.901  0.812  0.845
+  8     0      0.887  0.823  0.792
+  8     0.1    0.886  0.774  0.831
+  8     1      0.892  0.793  0.83 
+  8     2      0.902  0.816  0.845
+  9     0      0.887  0.833  0.784
+  9     0.1    0.881  0.782  0.818
+  9     1      0.898  0.784  0.839
+  9     2      0.902  0.805  0.845
+  10    0      0.886  0.819  0.774
+  10    0.1    0.882  0.774  0.834
+  10    1      0.898  0.798  0.833
+  10    2      0.903  0.8    0.846
+
+Tuning parameter 'bag' was held constant at a value of 0
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were size = 10, decay = 2 and bag = FALSE. 
+> 
+> set.seed(476)
+> nnetFit4 <- train(x = training[,reducedSet], 
++                   y = training$Class,
++                   method = "avNNet",
++                   metric = "ROC",
++                   preProc = c("center", "scale", "spatialSign"),
++                   tuneGrid = nnetGrid,
++                   trace = FALSE,
++                   maxit = 2000,
++                   repeats = 10,
++                   MaxNWts = 10*(maxSize * (length(reducedSet) + 1) + maxSize + 1),
++                   allowParallel = FALSE, 
++                   trControl = ctrl)
+> nnetFit4
+8190 samples
+ 252 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+Pre-processing: centered, scaled, spatial sign transformation 
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  size  decay  ROC    Sens   Spec 
+  1     0      0.85   0.775  0.806
+  1     0.1    0.857  0.782  0.81 
+  1     1      0.874  0.8    0.807
+  1     2      0.882  0.796  0.802
+  2     0      0.889  0.779  0.845
+  2     0.1    0.903  0.791  0.856
+  2     1      0.875  0.798  0.811
+  2     2      0.881  0.795  0.804
+  3     0      0.894  0.784  0.848
+  3     0.1    0.905  0.765  0.874
+  3     1      0.876  0.796  0.81 
+  3     2      0.881  0.795  0.804
+  4     0      0.895  0.796  0.867
+  4     0.1    0.908  0.777  0.868
+  4     1      0.875  0.796  0.809
+  4     2      0.881  0.795  0.805
+  5     0      0.893  0.768  0.841
+  5     0.1    0.912  0.767  0.871
+  5     1      0.876  0.795  0.809
+  5     2      0.881  0.795  0.805
+  6     0      0.9    0.781  0.864
+  6     0.1    0.907  0.758  0.874
+  6     1      0.878  0.796  0.815
+  6     2      0.881  0.795  0.805
+  7     0      0.893  0.791  0.857
+  7     0.1    0.902  0.765  0.86 
+  7     1      0.879  0.795  0.815
+  7     2      0.881  0.795  0.805
+  8     0      0.904  0.788  0.861
+  8     0.1    0.903  0.758  0.867
+  8     1      0.879  0.793  0.816
+  8     2      0.881  0.795  0.805
+  9     0      0.897  0.781  0.87 
+  9     0.1    0.904  0.761  0.863
+  9     1      0.874  0.798  0.809
+  9     2      0.881  0.795  0.805
+  10    0      0.902  0.786  0.86 
+  10    0.1    0.902  0.758  0.864
+  10    1      0.878  0.795  0.815
+  10    2      0.881  0.795  0.806
+
+Tuning parameter 'bag' was held constant at a value of 0
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were size = 5, decay = 0.1 and bag = FALSE. 
+> 
+> nnetFit4$pred <- merge(nnetFit4$pred,  nnetFit4$bestTune)
+> nnetCM <- confusionMatrix(nnetFit4, norm = "none")
+> nnetCM
+Repeated Train/Test Splits Estimated (1 reps, 0.75%) Confusion Matrix 
+
+(entries are un-normalized counts)
+ 
+Confusion Matrix and Statistics
+
+              Reference
+Prediction     successful unsuccessful
+  successful          437          127
+  unsuccessful        133          860
+                                          
+               Accuracy : 0.833           
+                 95% CI : (0.8135, 0.8512)
+    No Information Rate : 0.6339          
+    P-Value [Acc > NIR] : <2e-16          
+                                          
+                  Kappa : 0.6394          
+ Mcnemar's Test P-Value : 0.7565          
+                                          
+            Sensitivity : 0.7667          
+            Specificity : 0.8713          
+         Pos Pred Value : 0.7748          
+         Neg Pred Value : 0.8661          
+             Prevalence : 0.3661          
+         Detection Rate : 0.2807          
+   Detection Prevalence : 0.3622          
+                                          
+       'Positive' Class : successful      
+                                          
+
+> 
+> nnetRoc <- roc(response = nnetFit4$pred$obs,
++                predictor = nnetFit4$pred$successful,
++                levels = rev(levels(nnetFit4$pred$obs)))
+> 
+> 
+> nnet1 <- nnetFit$results
+> nnet1$Transform <- "No Transformation"
+> nnet1$Model <- "Single Model"
+> 
+> nnet2 <- nnetFit2$results
+> nnet2$Transform <- "Spatial Sign"
+> nnet2$Model <- "Single Model"
+> 
+> nnet3 <- nnetFit3$results
+> nnet3$Transform <- "No Transformation"
+> nnet3$Model <- "Model Averaging"
+> nnet3$bag <- NULL
+> 
+> nnet4 <- nnetFit4$results
+> nnet4$Transform <- "Spatial Sign"
+> nnet4$Model <- "Model Averaging"
+> nnet4$bag <- NULL
+> 
+> nnetResults <- rbind(nnet1, nnet2, nnet3, nnet4)
+> nnetResults$Model <- factor(as.character(nnetResults$Model),
++                             levels = c("Single Model", "Model Averaging"))
+> library(latticeExtra)
+Loading required package: RColorBrewer
+> useOuterStrips(
++   xyplot(ROC ~ size|Model*Transform,
++          data = nnetResults,
++          groups = decay,
++          as.table = TRUE,
++          type = c("p", "l", "g"),
++          lty = 1,
++          ylab = "ROC AUC (2008 Hold-Out Data)",
++          xlab = "Number of Hidden Units",
++          auto.key = list(columns = 4, 
++                          title = "Weight Decay", 
++                          cex.title = 1)))
+> 
+> plot(nnetRoc, type = "s", legacy.axes = TRUE)
+
+Call:
+roc.default(response = nnetFit4$pred$obs, predictor = nnetFit4$pred$successful,     levels = rev(levels(nnetFit4$pred$obs)))
+
+Data: nnetFit4$pred$successful in 987 controls (nnetFit4$pred$obs unsuccessful) < 570 cases (nnetFit4$pred$obs successful).
+Area under the curve: 0.9118
+> 
+> ################################################################################
+> ### Section 13.3 Flexible Discriminant Analysis
+> 
+> set.seed(476)
+> fdaFit <- train(x = training[,reducedSet], 
++                 y = training$Class,
++                 method = "fda",
++                 metric = "ROC",
++                 tuneGrid = expand.grid(.degree = 1, .nprune = 2:25),
++                 trControl = ctrl)
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: plotmo
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: leaps
+Loading required package: plotmo
+Loading required package: leaps
+Loading required package: plotmo
+Loading required package: plotrix
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotrix
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotmo
+Loading required package: plotrix
+Loading required package: plotmo
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: plotrix
+Loading required package: leaps
+Loading required package: plotmo
+Loading required package: plotrix
+> fdaFit
+8190 samples
+ 252 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+No pre-processing
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  nprune  ROC    Sens   Spec 
+  2       0.815  0.991  0.638
+  3       0.809  0.995  0.567
+  4       0.86   0.947  0.73 
+  5       0.869  0.963  0.728
+  6       0.877  0.968  0.727
+  7       0.893  0.823  0.806
+  8       0.903  0.779  0.851
+  9       0.909  0.83   0.841
+  10      0.915  0.816  0.853
+  11      0.919  0.825  0.859
+  12      0.92   0.816  0.865
+  13      0.918  0.809  0.865
+  14      0.92   0.807  0.865
+  15      0.92   0.819  0.861
+  16      0.921  0.826  0.858
+  17      0.921  0.818  0.863
+  18      0.922  0.821  0.86 
+  19      0.924  0.825  0.864
+  20      0.922  0.825  0.858
+  21      0.919  0.816  0.869
+  22      0.919  0.811  0.872
+  23      0.918  0.811  0.867
+  24      0.918  0.809  0.868
+  25      0.918  0.809  0.865
+
+Tuning parameter 'degree' was held constant at a value of 1
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were nprune = 19 and degree = 1. 
+> 
+> fdaFit$pred <- merge(fdaFit$pred,  fdaFit$bestTune)
+> fdaCM <- confusionMatrix(fdaFit, norm = "none")
+> fdaCM
+Repeated Train/Test Splits Estimated (1 reps, 0.75%) Confusion Matrix 
+
+(entries are un-normalized counts)
+ 
+Confusion Matrix and Statistics
+
+              Reference
+Prediction     successful unsuccessful
+  successful          470          134
+  unsuccessful        100          853
+                                         
+               Accuracy : 0.8497         
+                 95% CI : (0.831, 0.8671)
+    No Information Rate : 0.6339         
+    P-Value [Acc > NIR] : < 2e-16        
+                                         
+                  Kappa : 0.6802         
+ Mcnemar's Test P-Value : 0.03098        
+                                         
+            Sensitivity : 0.8246         
+            Specificity : 0.8642         
+         Pos Pred Value : 0.7781         
+         Neg Pred Value : 0.8951         
+             Prevalence : 0.3661         
+         Detection Rate : 0.3019         
+   Detection Prevalence : 0.3879         
+                                         
+       'Positive' Class : successful     
+                                         
+
+> 
+> fdaRoc <- roc(response = fdaFit$pred$obs,
++               predictor = fdaFit$pred$successful,
++               levels = rev(levels(fdaFit$pred$obs)))
+> 
+> update(plot(fdaFit), ylab = "ROC AUC (2008 Hold-Out Data)")
+> 
+> plot(nnetRoc, type = "s", col = rgb(.2, .2, .2, .2), legacy.axes = TRUE)
+
+Call:
+roc.default(response = nnetFit4$pred$obs, predictor = nnetFit4$pred$successful,     levels = rev(levels(nnetFit4$pred$obs)))
+
+Data: nnetFit4$pred$successful in 987 controls (nnetFit4$pred$obs unsuccessful) < 570 cases (nnetFit4$pred$obs successful).
+Area under the curve: 0.9118
+> plot(fdaRoc, type = "s", add = TRUE, legacy.axes = TRUE)
+
+Call:
+roc.default(response = fdaFit$pred$obs, predictor = fdaFit$pred$successful,     levels = rev(levels(fdaFit$pred$obs)))
+
+Data: fdaFit$pred$successful in 987 controls (fdaFit$pred$obs unsuccessful) < 570 cases (fdaFit$pred$obs successful).
+Area under the curve: 0.924
+> 
+> 
+> ################################################################################
+> ### Section 13.4 Support Vector Machines
+> 
+> library(kernlab)
+> 
+> set.seed(201)
+> sigmaRangeFull <- sigest(as.matrix(training[,fullSet]))
+> svmRGridFull <- expand.grid(.sigma =  as.vector(sigmaRangeFull)[1],
++                             .C = 2^(-3:4))
+> set.seed(476)
+> svmRFitFull <- train(x = training[,fullSet], 
++                      y = training$Class,
++                      method = "svmRadial",
++                      metric = "ROC",
++                      preProc = c("center", "scale"),
++                      tuneGrid = svmRGridFull,
++                      trControl = ctrl)
+> svmRFitFull
+8190 samples
+1070 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+Pre-processing: centered, scaled 
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  C      ROC    Sens   Spec 
+  0.125  0.781  0.507  0.807
+  0.25   0.851  0.737  0.79 
+  0.5    0.866  0.819  0.784
+  1      0.873  0.828  0.78 
+  2      0.875  0.826  0.785
+  4      0.875  0.823  0.789
+  8      0.87   0.804  0.789
+  16     0.866  0.807  0.796
+
+Tuning parameter 'sigma' was held constant at a value of 0.000239
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were C = 2 and sigma = 0.000239. 
+> 
+> set.seed(202)
+> sigmaRangeReduced <- sigest(as.matrix(training[,reducedSet]))
+> svmRGridReduced <- expand.grid(.sigma = sigmaRangeReduced[1],
++                                .C = 2^(seq(-4, 4)))
+> set.seed(476)
+> svmRFitReduced <- train(x = training[,reducedSet], 
++                         y = training$Class,
++                         method = "svmRadial",
++                         metric = "ROC",
++                         preProc = c("center", "scale"),
++                         tuneGrid = svmRGridReduced,
++                         trControl = ctrl)
+line search fails -1.91953 -0.1093806 1.69647e-05 1.865964e-06 -3.400086e-08 -3.541199e-09 -5.83422e-13Warning message:
+In nominalTrainWorkflow(dat = trainData, info = trainInfo, method = method,  :
+  There were missing values in resampled performance measures.
+> svmRFitReduced
+8190 samples
+ 252 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+Pre-processing: centered, scaled 
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  C       ROC    Sens   Spec 
+  0.0625  0.866  0.775  0.787
+  0.125   0.88   0.842  0.776
+  0.25    0.89   0.867  0.772
+  0.5     0.894  0.851  0.784
+  1       0.895  0.84   0.804
+  2       NaN    0.814  0.814
+  4       0.887  0.814  0.812
+  8       0.885  0.804  0.814
+  16      0.882  0.805  0.818
+
+Tuning parameter 'sigma' was held constant at a value of 0.00117
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were C = 1 and sigma = 0.00117. 
+> 
+> svmPGrid <-  expand.grid(.degree = 1:2,
++                          .scale = c(0.01, .005),
++                          .C = 2^(seq(-6, -2, length = 10)))
+> 
+> set.seed(476)
+> svmPFitFull <- train(x = training[,fullSet], 
++                      y = training$Class,
++                      method = "svmPoly",
++                      metric = "ROC",
++                      preProc = c("center", "scale"),
++                      tuneGrid = svmPGrid,
++                      trControl = ctrl)
+> svmPFitFull
+8190 samples
+1070 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+Pre-processing: centered, scaled 
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  C       degree  scale  ROC    Sens   Spec 
+  0.0156  1       0.005  0.856  0.744  0.814
+  0.0156  1       0.01   0.864  0.832  0.787
+  0.0156  2       0.005  0.838  0.761  0.777
+  0.0156  2       0.01   0.845  0.807  0.771
+  0.0213  1       0.005  0.861  0.807  0.795
+  0.0213  1       0.01   0.868  0.84   0.785
+  0.0213  2       0.005  0.845  0.786  0.784
+  0.0213  2       0.01   0.851  0.814  0.774
+  0.0289  1       0.005  0.863  0.832  0.787
+  0.0289  1       0.01   0.87   0.854  0.786
+  0.0289  2       0.005  0.852  0.807  0.78 
+  0.0289  2       0.01   0.856  0.816  0.772
+  0.0394  1       0.005  0.867  0.84   0.785
+  0.0394  1       0.01   0.872  0.847  0.784
+  0.0394  2       0.005  0.856  0.819  0.783
+  0.0394  2       0.01   0.857  0.818  0.774
+  0.0536  1       0.005  0.87   0.847  0.785
+  0.0536  1       0.01   0.873  0.84   0.79 
+  0.0536  2       0.005  0.86   0.819  0.779
+  0.0536  2       0.01   0.855  0.818  0.77 
+  0.0729  1       0.005  0.872  0.849  0.786
+  0.0729  1       0.01   0.873  0.825  0.794
+  0.0729  2       0.005  0.865  0.828  0.779
+  0.0729  2       0.01   0.854  0.805  0.772
+  0.0992  1       0.005  0.872  0.84   0.789
+  0.0992  1       0.01   0.872  0.818  0.794
+  0.0992  2       0.005  0.866  0.828  0.775
+  0.0992  2       0.01   0.854  0.798  0.777
+  0.135   1       0.005  0.873  0.828  0.796
+  0.135   1       0.01   0.871  0.819  0.797
+  0.135   2       0.005  0.865  0.825  0.777
+  0.135   2       0.01   0.852  0.8    0.772
+  0.184   1       0.005  0.872  0.821  0.793
+  0.184   1       0.01   0.868  0.816  0.785
+  0.184   2       0.005  0.862  0.814  0.774
+  0.184   2       0.01   0.851  0.791  0.767
+  0.25    1       0.005  0.872  0.823  0.799
+  0.25    1       0.01   0.862  0.796  0.789
+  0.25    2       0.005  0.86   0.811  0.776
+  0.25    2       0.01   0.85   0.795  0.768
+
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were C = 0.0729, degree = 1 and scale
+ = 0.01. 
+> 
+> svmPGrid2 <-  expand.grid(.degree = 1:2,
++                           .scale = c(0.01, .005),
++                           .C = 2^(seq(-6, -2, length = 10)))
+> set.seed(476)
+> svmPFitReduced <- train(x = training[,reducedSet], 
++                         y = training$Class,
++                         method = "svmPoly",
++                         metric = "ROC",
++                         preProc = c("center", "scale"),
++                         tuneGrid = svmPGrid2,
++                         fit = FALSE,
++                         trControl = ctrl)
+line search fails -2.047065 -0.1280616 1.102892e-05 1.941297e-06 -2.445584e-08 -3.636302e-09 -2.767806e-13line search fails -1.967998 -0.1375378 1.881195e-05 3.420162e-06 -3.910311e-08 -6.5349e-09 -7.579564e-13Warning message:
+In nominalTrainWorkflow(dat = trainData, info = trainInfo, method = method,  :
+  There were missing values in resampled performance measures.
+> svmPFitReduced
+8190 samples
+ 252 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+Pre-processing: centered, scaled 
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  C       degree  scale  ROC    Sens   Spec 
+  0.0156  1       0.005  0.867  0.791  0.775
+  0.0156  1       0.01   0.883  0.888  0.755
+  0.0156  2       0.005  0.88   0.877  0.763
+  0.0156  2       0.01   0.891  0.868  0.775
+  0.0213  1       0.005  0.875  0.853  0.757
+  0.0213  1       0.01   0.888  0.9    0.758
+  0.0213  2       0.005  0.886  0.888  0.763
+  0.0213  2       0.01   0.894  0.874  0.776
+  0.0289  1       0.005  0.881  0.882  0.753
+  0.0289  1       0.01   0.893  0.898  0.761
+  0.0289  2       0.005  0.89   0.884  0.772
+  0.0289  2       0.01   0.896  0.858  0.786
+  0.0394  1       0.005  0.887  0.893  0.756
+  0.0394  1       0.01   0.896  0.895  0.769
+  0.0394  2       0.005  0.894  0.877  0.772
+  0.0394  2       0.01   0.897  0.853  0.793
+  0.0536  1       0.005  0.892  0.904  0.764
+  0.0536  1       0.01   0.896  0.875  0.775
+  0.0536  2       0.005  0.896  0.872  0.778
+  0.0536  2       0.01   0.896  0.844  0.802
+  0.0729  1       0.005  0.895  0.898  0.766
+  0.0729  1       0.01   0.897  0.865  0.78 
+  0.0729  2       0.005  0.898  0.858  0.79 
+  0.0729  2       0.01   0.893  0.84   0.807
+  0.0992  1       0.005  0.897  0.879  0.772
+  0.0992  1       0.01   0.896  0.86   0.785
+  0.0992  2       0.005  0.898  0.849  0.795
+  0.0992  2       0.01   NaN    0.823  0.814
+  0.135   1       0.005  0.896  0.868  0.777
+  0.135   1       0.01   0.894  0.851  0.793
+  0.135   2       0.005  0.896  0.84   0.809
+  0.135   2       0.01   0.887  0.816  0.814
+  0.184   1       0.005  0.896  0.863  0.786
+  0.184   1       0.01   0.891  0.847  0.798
+  0.184   2       0.005  0.896  0.839  0.809
+  0.184   2       0.01   0.883  0.814  0.817
+  0.25    1       0.005  0.895  0.853  0.789
+  0.25    1       0.01   0.888  0.84   0.807
+  0.25    2       0.005  NaN    0.826  0.811
+  0.25    2       0.01   0.88   0.814  0.821
+
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were C = 0.0729, degree = 2 and scale
+ = 0.005. 
+> 
+> svmPFitReduced$pred <- merge(svmPFitReduced$pred,  svmPFitReduced$bestTune)
+> svmPCM <- confusionMatrix(svmPFitReduced, norm = "none")
+> svmPRoc <- roc(response = svmPFitReduced$pred$obs,
++                predictor = svmPFitReduced$pred$successful,
++                levels = rev(levels(svmPFitReduced$pred$obs)))
+> 
+> 
+> svmRadialResults <- rbind(svmRFitReduced$results,
++                           svmRFitFull$results)
+> svmRadialResults$Set <- c(rep("Reduced Set", nrow(svmRFitReduced$result)),
++                           rep("Full Set", nrow(svmRFitFull$result)))
+> svmRadialResults$Sigma <- paste("sigma = ", 
++                                 format(svmRadialResults$sigma, 
++                                        scientific = FALSE, digits= 5))
+> svmRadialResults <- svmRadialResults[!is.na(svmRadialResults$ROC),]
+> xyplot(ROC ~ C|Set, data = svmRadialResults,
++        groups = Sigma, type = c("g", "o"),
++        xlab = "Cost",
++        ylab = "ROC (2008 Hold-Out Data)",
++        auto.key = list(columns = 2),
++        scales = list(x = list(log = 2)))
+> 
+> svmPolyResults <- rbind(svmPFitReduced$results,
++                         svmPFitFull$results)
+> svmPolyResults$Set <- c(rep("Reduced Set", nrow(svmPFitReduced$result)),
++                         rep("Full Set", nrow(svmPFitFull$result)))
+> svmPolyResults <- svmPolyResults[!is.na(svmPolyResults$ROC),]
+> svmPolyResults$scale <- paste("scale = ", 
++                               format(svmPolyResults$scale, 
++                                      scientific = FALSE))
+> svmPolyResults$Degree <- "Linear"
+> svmPolyResults$Degree[svmPolyResults$degree == 2] <- "Quadratic"
+> useOuterStrips(xyplot(ROC ~ C|Degree*Set, data = svmPolyResults,
++                       groups = scale, type = c("g", "o"),
++                       xlab = "Cost",
++                       ylab = "ROC (2008 Hold-Out Data)",
++                       auto.key = list(columns = 2),
++                       scales = list(x = list(log = 2))))
+> 
+> plot(nnetRoc, type = "s", col = rgb(.2, .2, .2, .2), legacy.axes = TRUE)
+
+Call:
+roc.default(response = nnetFit4$pred$obs, predictor = nnetFit4$pred$successful,     levels = rev(levels(nnetFit4$pred$obs)))
+
+Data: nnetFit4$pred$successful in 987 controls (nnetFit4$pred$obs unsuccessful) < 570 cases (nnetFit4$pred$obs successful).
+Area under the curve: 0.9118
+> plot(fdaRoc, type = "s", add = TRUE, col = rgb(.2, .2, .2, .2), legacy.axes = TRUE)
+
+Call:
+roc.default(response = fdaFit$pred$obs, predictor = fdaFit$pred$successful,     levels = rev(levels(fdaFit$pred$obs)))
+
+Data: fdaFit$pred$successful in 987 controls (fdaFit$pred$obs unsuccessful) < 570 cases (fdaFit$pred$obs successful).
+Area under the curve: 0.924
+> plot(svmPRoc, type = "s", add = TRUE, legacy.axes = TRUE)
+
+Call:
+roc.default(response = svmPFitReduced$pred$obs, predictor = svmPFitReduced$pred$successful,     levels = rev(levels(svmPFitReduced$pred$obs)))
+
+Data: svmPFitReduced$pred$successful in 987 controls (svmPFitReduced$pred$obs unsuccessful) < 570 cases (svmPFitReduced$pred$obs successful).
+Area under the curve: 0.8982
+> 
+> ################################################################################
+> ### Section 13.5 K-Nearest Neighbors
+> 
+> 
+> set.seed(476)
+> knnFit <- train(x = training[,reducedSet], 
++                 y = training$Class,
++                 method = "knn",
++                 metric = "ROC",
++                 preProc = c("center", "scale"),
++                 tuneGrid = data.frame(.k = c(4*(0:5)+1,20*(1:5)+1,50*(2:9)+1)),
++                 trControl = ctrl)
+> knnFit
+8190 samples
+ 252 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+Pre-processing: centered, scaled 
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  k    ROC    Sens   Spec   ROC SD  Sens SD  Spec SD
+  1    0.622  0.547  0.693  NA      NA       NA     
+  5    0.7    0.554  0.711  NA      NA       NA     
+  9    0.706  0.544  0.745  NA      NA       NA     
+  13   0.709  0.563  0.743  NA      NA       NA     
+  17   0.711  0.563  0.736  NA      NA       NA     
+  21   0.724  0.542  0.739  0       0        0.00215
+  41   0.734  0.579  0.755  NA      NA       NA     
+  61   0.75   0.556  0.785  NA      NA       NA     
+  81   0.762  0.533  0.811  NA      NA       NA     
+  101  0.766  0.519  0.824  0       0        0      
+  151  0.773  0.453  0.866  NA      NA       NA     
+  201  0.779  0.396  0.891  NA      NA       NA     
+  251  0.781  0.351  0.897  NA      NA       NA     
+  301  0.787  0.333  0.904  NA      NA       NA     
+  351  0.792  0.311  0.907  NA      NA       NA     
+  401  0.797  0.337  0.905  NA      NA       NA     
+  451  0.807  0.351  0.908  NA      NA       NA     
+
+ROC was used to select the optimal model using  the largest value.
+The final value used for the model was k = 451. 
+> 
+> knnFit$pred <- merge(knnFit$pred,  knnFit$bestTune)
+> knnCM <- confusionMatrix(knnFit, norm = "none")
+> knnCM
+Repeated Train/Test Splits Estimated (1 reps, 0.75%) Confusion Matrix 
+
+(entries are un-normalized counts)
+ 
+Confusion Matrix and Statistics
+
+              Reference
+Prediction     successful unsuccessful
+  successful          200           91
+  unsuccessful        370          896
+                                          
+               Accuracy : 0.7039          
+                 95% CI : (0.6806, 0.7265)
+    No Information Rate : 0.6339          
+    P-Value [Acc > NIR] : 3.409e-09       
+                                          
+                  Kappa : 0.2885          
+ Mcnemar's Test P-Value : < 2.2e-16       
+                                          
+            Sensitivity : 0.3509          
+            Specificity : 0.9078          
+         Pos Pred Value : 0.6873          
+         Neg Pred Value : 0.7077          
+             Prevalence : 0.3661          
+         Detection Rate : 0.1285          
+   Detection Prevalence : 0.1869          
+                                          
+       'Positive' Class : successful      
+                                          
+
+> knnRoc <- roc(response = knnFit$pred$obs,
++               predictor = knnFit$pred$successful,
++               levels = rev(levels(knnFit$pred$obs)))
+> 
+> update(plot(knnFit, ylab = "ROC (2008 Hold-Out Data)"))
+> 
+> plot(fdaRoc, type = "s", col = rgb(.2, .2, .2, .2), legacy.axes = TRUE)
+
+Call:
+roc.default(response = fdaFit$pred$obs, predictor = fdaFit$pred$successful,     levels = rev(levels(fdaFit$pred$obs)))
+
+Data: fdaFit$pred$successful in 987 controls (fdaFit$pred$obs unsuccessful) < 570 cases (fdaFit$pred$obs successful).
+Area under the curve: 0.924
+> plot(nnetRoc, type = "s", add = TRUE, col = rgb(.2, .2, .2, .2), legacy.axes = TRUE)
+
+Call:
+roc.default(response = nnetFit4$pred$obs, predictor = nnetFit4$pred$successful,     levels = rev(levels(nnetFit4$pred$obs)))
+
+Data: nnetFit4$pred$successful in 987 controls (nnetFit4$pred$obs unsuccessful) < 570 cases (nnetFit4$pred$obs successful).
+Area under the curve: 0.9118
+> plot(svmPRoc, type = "s", add = TRUE, col = rgb(.2, .2, .2, .2), legacy.axes = TRUE)
+
+Call:
+roc.default(response = svmPFitReduced$pred$obs, predictor = svmPFitReduced$pred$successful,     levels = rev(levels(svmPFitReduced$pred$obs)))
+
+Data: svmPFitReduced$pred$successful in 987 controls (svmPFitReduced$pred$obs unsuccessful) < 570 cases (svmPFitReduced$pred$obs successful).
+Area under the curve: 0.8982
+> plot(knnRoc, type = "s", add = TRUE, legacy.axes = TRUE)
+
+Call:
+roc.default(response = knnFit$pred$obs, predictor = knnFit$pred$successful,     levels = rev(levels(knnFit$pred$obs)))
+
+Data: knnFit$pred$successful in 987 controls (knnFit$pred$obs unsuccessful) < 570 cases (knnFit$pred$obs successful).
+Area under the curve: 0.8068
+> 
+> ################################################################################
+> ### Section 13.6 Naive Bayes
+> 
+> ## Create factor versions of some of the predictors so that they are treated
+> ## as categories and not dummy variables
+> 
+> factors <- c("SponsorCode", "ContractValueBand", "Month", "Weekday")
+> nbPredictors <- factorPredictors[factorPredictors %in% reducedSet]
+> nbPredictors <- c(nbPredictors, factors)
+> nbPredictors <- nbPredictors[nbPredictors != "SponsorUnk"]
+> 
+> nbTraining <- training[, c("Class", nbPredictors)]
+> nbTesting <- testing[, c("Class", nbPredictors)]
+> 
+> for(i in nbPredictors)
++ {
++   if(length(unique(training[,i])) <= 15)
++   {
++     nbTraining[, i] <- factor(nbTraining[,i], levels = paste(sort(unique(training[,i]))))
++     nbTesting[, i] <- factor(nbTesting[,i], levels = paste(sort(unique(training[,i]))))
++   }
++ }
+> 
+> set.seed(476)
+> nBayesFit <- train(x = nbTraining[,nbPredictors],
++                    y = nbTraining$Class,
++                    method = "nb",
++                    metric = "ROC",
++                    tuneGrid = data.frame(.usekernel = c(TRUE, FALSE), .fL = 2),
++                    trControl = ctrl)
+Loading required package: MASS
+Loading required package: MASS
+Loading required package: MASS
+> nBayesFit
+8190 samples
+ 205 predictors
+   2 classes: 'successful', 'unsuccessful' 
+
+No pre-processing
+Resampling: Repeated Train/Test Splits (1 reps, 0.75%) 
+
+Summary of sample sizes: 6633 
+
+Resampling results across tuning parameters:
+
+  usekernel  ROC    Sens   Spec 
+  FALSE      0.782  0.588  0.796
+  TRUE       0.814  0.644  0.824
+
+Tuning parameter 'fL' was held constant at a value of 2
+ROC was used to select the optimal model using  the largest value.
+The final values used for the model were fL = 2 and usekernel = TRUE. 
+> 
+> nBayesFit$pred <- merge(nBayesFit$pred,  nBayesFit$bestTune)
+> nBayesCM <- confusionMatrix(nBayesFit, norm = "none")
+> nBayesCM
+Repeated Train/Test Splits Estimated (1 reps, 0.75%) Confusion Matrix 
+
+(entries are un-normalized counts)
+ 
+Confusion Matrix and Statistics
+
+              Reference
+Prediction     successful unsuccessful
+  successful          367          174
+  unsuccessful        203          813
+                                         
+               Accuracy : 0.7579         
+                 95% CI : (0.7358, 0.779)
+    No Information Rate : 0.6339         
+    P-Value [Acc > NIR] : <2e-16         
+                                         
+                  Kappa : 0.4726         
+ Mcnemar's Test P-Value : 0.1493         
+                                         
+            Sensitivity : 0.6439         
+            Specificity : 0.8237         
+         Pos Pred Value : 0.6784         
+         Neg Pred Value : 0.8002         
+             Prevalence : 0.3661         
+         Detection Rate : 0.2357         
+   Detection Prevalence : 0.3475         
+                                         
+       'Positive' Class : successful     
+                                         
+
+> nBayesRoc <- roc(response = nBayesFit$pred$obs,
++                  predictor = nBayesFit$pred$successful,
++                  levels = rev(levels(nBayesFit$pred$obs)))
+> nBayesRoc
+
+Call:
+roc.default(response = nBayesFit$pred$obs, predictor = nBayesFit$pred$successful,     levels = rev(levels(nBayesFit$pred$obs)))
+
+Data: nBayesFit$pred$successful in 987 controls (nBayesFit$pred$obs unsuccessful) < 570 cases (nBayesFit$pred$obs successful).
+Area under the curve: 0.8137
+> 
+> 
+> sessionInfo()
+R version 3.0.0 RC (2013-03-27 r62426)
+Platform: x86_64-apple-darwin10.8.0 (64-bit)
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] parallel  stats     graphics  grDevices utils     datasets  methods  
+[8] base     
+
+other attached packages:
+ [1] klaR_0.6-7          MASS_7.3-26         kernlab_0.9-16     
+ [4] earth_3.2-3         plotrix_3.4-6       plotmo_1.3-2       
+ [7] leaps_2.9           latticeExtra_0.6-24 RColorBrewer_1.0-5 
+[10] nnet_7.3-6          e1071_1.6-1         mda_0.4-2          
+[13] class_7.3-7         pROC_1.5.4          doMC_1.3.0         
+[16] iterators_1.0.6     caret_5.15-61       reshape2_1.2.2     
+[19] plyr_1.8            lattice_0.20-15     foreach_1.4.0      
+[22] cluster_1.14.4     
+
+loaded via a namespace (and not attached):
+[1] codetools_0.2-8 compiler_3.0.0  grid_3.0.0      stringr_0.6.2  
+> 
+> q("no")
+> proc.time()
+      user     system    elapsed 
+310089.515   3015.863  56153.337 

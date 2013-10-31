@@ -1,9 +1,6 @@
 permuteRelief <-
 function(x, y, nperm = 100, ...)
   {
-    library(CORElearn)
-    library(plyr)
-    library(reshape2)
     dat <- x
     dat$y <- y
     

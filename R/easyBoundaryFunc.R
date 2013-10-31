@@ -1,7 +1,6 @@
 
 easyBoundaryFunc <- function(n, intercept = 0, interaction = 2)
 {
-   require(MASS)
    sigma <- matrix(c(2,1.3,1.3,2),2,2)
    
    tmpData <- data.frame(mvrnorm(n=n, c(0,0), sigma))

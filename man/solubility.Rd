@@ -38,6 +38,28 @@ library(caret)
 set.seed(100)
 indx <- createFolds(solTrainY, returnTrain = TRUE)
 
+### To re-create the transformed version of the data:
+\dontrun{
+## Find the predictors that are not fingerprints
+contVars <- names(solTrainX)[!grepl("FP", names(solTrainX))]
+## Some have zero values, so we need to add one to them so that
+## we can use the Box-Cox transformation. Alternatively, we could 
+## use the Yeo-Johnson transformation without altering the data.
+contPredTrain <- solTrainX[,contVars] + 1
+contPredTest  <-  solTestX[,contVars] + 1
+
+pp <- preProcess(contPredTrain, method = "BoxCox")
+contPredTrain <- predict(pp, contPredTrain)
+contPredTest  <- predict(pp, contPredTest)
+
+## Reassemble the fingerprint data with the transformed values.
+trainXtrans <- cbind(solTrainX[,grep("FP", names(solTrainX))], contPredTrain)
+testXtrans  <- cbind( solTestX[,grep("FP", names(solTestX))],  contPredTest)
+
+all.equal(trainXtrans, solTrainXtrans)
+all.equal(testXtrans, solTestXtrans)
+	}
+
 }
 
 \keyword{datasets}  

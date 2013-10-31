@@ -27,8 +27,8 @@ the same batch of biological starting material.
 
 \usage{data(ChemicalManufacturingProcess)}
 \value{
-  \item{ChemicalManufacturingProcess}{a data frame with columns for the outcome (\code{Yield}) and the predictors (\code{BiologicalMaterial01} though \code{BiologicalMaterial12} and \code{ManufacturingProcess01} though \code{ManufacturingProcess45}}
-  }
+\code{ChemicalManufacturingProcess}: a data frame with columns for the outcome (\code{Yield}) and the predictors (\code{BiologicalMaterial01} though \code{BiologicalMaterial12} and \code{ManufacturingProcess01} though \code{ManufacturingProcess45}
+}
 
 \examples{
 data(ChemicalManufacturingProcess)

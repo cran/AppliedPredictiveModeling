@@ -1,7 +1,6 @@
 quadBoundaryFunc <-
 function(n)
 {
-   require(MASS)
    sigma <- matrix(c(1,.7,.7,2),2,2)
    
    tmpData <- data.frame(mvrnorm(n=n, c(1,0), sigma))

@@ -147,7 +147,7 @@ costSummary <- function (data, lev = NULL, model = NULL)
     Cost = cost(data[, "pred"], data[, "obs"]))
 }
 
-### Create a contrl object for the models
+### Create a control object for the models
 ctrl <- trainControl(method = "repeatedcv", 
                      repeats = 5,
                      summaryFunction = costSummary)
@@ -197,8 +197,8 @@ ldaFit <- train(x = expandedTrain,
                 trControl = ctrl)
 ldaFit
 
-sldaGrid <- expand.grid(.NumVars = seq(2, 112, by = 5),
-                        .lambda = c(0, 0.01, .1, 1, 10))
+sldaGrid <- expand.grid(NumVars = seq(2, 112, by = 5),
+                        lambda = c(0, 0.01, .1, 1, 10))
 set.seed(857)
 sldaFit <- train(x = expandedTrain,
                  y = trainData$Class,
@@ -211,8 +211,8 @@ sldaFit <- train(x = expandedTrain,
 sldaFit
 
 set.seed(857)
-nnetGrid <- expand.grid(.decay = c(0, 0.001, 0.01, .1, .5),
-                        .size = (1:10)*2 - 1)
+nnetGrid <- expand.grid(decay = c(0, 0.001, 0.01, .1, .5),
+                        size = (1:10)*2 - 1)
 nnetFit <- train(modForm, 
                  data = trainData,
                  method = "nnet",
@@ -271,9 +271,9 @@ rfFitCost <- train(x = trainData[, predictors],
                    trControl = ctrl)
 rfFitCost
 
-c5Grid <- expand.grid(.trials = c(1, (1:10)*10),
-                      .model = "tree",
-                      .winnow = c(TRUE, FALSE))
+c5Grid <- expand.grid(trials = c(1, (1:10)*10),
+                      model = "tree",
+                      winnow = c(TRUE, FALSE))
 set.seed(857)
 c50Fit <- train(x = trainData[, predictors],
                 y = trainData$Class,

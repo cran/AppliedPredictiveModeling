@@ -96,7 +96,7 @@ testResults <- data.frame(obs = solTestY,
 
 ### Tune the conditional inference tree
 
-cGrid <- data.frame(.mincriterion = sort(c(.95, seq(.75, .99, length = 2))))
+cGrid <- data.frame(mincriterion = sort(c(.95, seq(.75, .99, length = 2))))
 
 set.seed(100)
 ctreeTune <- train(x = solTrainXtrans, y = solTrainY,
@@ -169,7 +169,7 @@ treebagTune
 ################################################################################
 ### Section 8.5 Random Forests
 
-mtryGrid <- data.frame(.mtry = floor(seq(10, ncol(solTrainXtrans), length = 10)))
+mtryGrid <- data.frame(mtry = floor(seq(10, ncol(solTrainXtrans), length = 10)))
 
 
 ### Tune the model using cross-validation
@@ -224,9 +224,9 @@ plot(condrfTuneOOB)
 ################################################################################
 ### Section 8.6 Boosting
 
-gbmGrid <- expand.grid(.interaction.depth = seq(1, 7, by = 2),
-                       .n.trees = seq(100, 1000, by = 50),
-                       .shrinkage = c(0.01, 0.1))
+gbmGrid <- expand.grid(interaction.depth = seq(1, 7, by = 2),
+                       n.trees = seq(100, 1000, by = 50),
+                       shrinkage = c(0.01, 0.1))
 set.seed(100)
 gbmTune <- train(x = solTrainXtrans, y = solTrainY,
                  method = "gbm",
@@ -243,8 +243,8 @@ gbmImp
 ################################################################################
 ### Section 8.7 Cubist
 
-cbGrid <- expand.grid(.committees = c(1:10, 20, 50, 75, 100), 
-                      .neighbors = c(0, 1, 5, 9))
+cbGrid <- expand.grid(committees = c(1:10, 20, 50, 75, 100), 
+                      neighbors = c(0, 1, 5, 9))
 
 set.seed(100)
 cubistTune <- train(solTrainXtrans, solTrainY,

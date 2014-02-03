@@ -251,7 +251,7 @@ rfFit <- train(x = training[,fullSet],
                y = training$Class,
                method = "rf",
                ntree = 500,
-               tuneGrid = data.frame(.mtry = mtryValues),
+               tuneGrid = data.frame(mtry = mtryValues),
                importance = TRUE,
                metric = "ROC",
                trControl = ctrl)
@@ -283,7 +283,7 @@ rfFactorFit <- train(x = training[,rfPredictors],
                      y = training$Class,
                      method = "rf",
                      ntree = 1500,
-                     tuneGrid = data.frame(.mtry = mtryValues),
+                     tuneGrid = data.frame(mtry = mtryValues),
                      importance = TRUE,
                      metric = "ROC",
                      trControl = ctrl)
@@ -318,9 +318,9 @@ legend(.75, .2,
 ################################################################################
 ### Section 14.5 Boosting
 
-gbmGrid <- expand.grid(.interaction.depth = c(1, 3, 5, 7, 9),
-                       .n.trees = (1:20)*100,
-                       .shrinkage = c(.01, .1))
+gbmGrid <- expand.grid(interaction.depth = c(1, 3, 5, 7, 9),
+                       n.trees = (1:20)*100,
+                       shrinkage = c(.01, .1))
 
 set.seed(476)
 gbmFit <- train(x = training[,fullSet], 
@@ -387,9 +387,9 @@ legend(.75, .2,
 ################################################################################
 ### Section 14.5 C5.0
 
-c50Grid <- expand.grid(.trials = c(1:9, (1:10)*10),
-                       .model = c("tree", "rules"),
-                       .winnow = c(TRUE, FALSE))
+c50Grid <- expand.grid(trials = c(1:9, (1:10)*10),
+                       model = c("tree", "rules"),
+                       winnow = c(TRUE, FALSE))
 set.seed(476)
 c50FactorFit <- train(training[,factorPredictors], training$Class,
                       method = "C5.0",

@@ -64,7 +64,7 @@ mdaFit <- train(x = training[,reducedSet],
                 method = "mda",
                 metric = "ROC",
                 tries = 40,
-                tuneGrid = expand.grid(.subclasses = 1:8),
+                tuneGrid = expand.grid(subclasses = 1:8),
                 trControl = ctrl)
 mdaFit
 
@@ -84,8 +84,8 @@ update(plot(mdaFit,
 ################################################################################
 ### Section 13.2 Neural Networks
 
-nnetGrid <- expand.grid(.size = 1:10, .decay = c(0, .1, 1, 2))
-maxSize <- max(nnetGrid$.size)
+nnetGrid <- expand.grid(size = 1:10, decay = c(0, .1, 1, 2))
+maxSize <- max(nnetGrid$size)
 
 
 ## Four different models are evaluate based on the data pre-processing and 
@@ -117,7 +117,7 @@ nnetFit2 <- train(x = training[,reducedSet],
                   trControl = ctrl)
 nnetFit2
 
-nnetGrid$.bag <- FALSE
+nnetGrid$bag <- FALSE
 
 set.seed(476)
 nnetFit3 <- train(x = training[,reducedSet], 
@@ -203,7 +203,7 @@ fdaFit <- train(x = training[,reducedSet],
                 y = training$Class,
                 method = "fda",
                 metric = "ROC",
-                tuneGrid = expand.grid(.degree = 1, .nprune = 2:25),
+                tuneGrid = expand.grid(degree = 1, nprune = 2:25),
                 trControl = ctrl)
 fdaFit
 
@@ -228,8 +228,8 @@ library(kernlab)
 
 set.seed(201)
 sigmaRangeFull <- sigest(as.matrix(training[,fullSet]))
-svmRGridFull <- expand.grid(.sigma =  as.vector(sigmaRangeFull)[1],
-                            .C = 2^(-3:4))
+svmRGridFull <- expand.grid(sigma =  as.vector(sigmaRangeFull)[1],
+                            C = 2^(-3:4))
 set.seed(476)
 svmRFitFull <- train(x = training[,fullSet], 
                      y = training$Class,
@@ -242,8 +242,8 @@ svmRFitFull
 
 set.seed(202)
 sigmaRangeReduced <- sigest(as.matrix(training[,reducedSet]))
-svmRGridReduced <- expand.grid(.sigma = sigmaRangeReduced[1],
-                               .C = 2^(seq(-4, 4)))
+svmRGridReduced <- expand.grid(sigma = sigmaRangeReduced[1],
+                               C = 2^(seq(-4, 4)))
 set.seed(476)
 svmRFitReduced <- train(x = training[,reducedSet], 
                         y = training$Class,
@@ -254,9 +254,9 @@ svmRFitReduced <- train(x = training[,reducedSet],
                         trControl = ctrl)
 svmRFitReduced
 
-svmPGrid <-  expand.grid(.degree = 1:2,
-                         .scale = c(0.01, .005),
-                         .C = 2^(seq(-6, -2, length = 10)))
+svmPGrid <-  expand.grid(degree = 1:2,
+                         scale = c(0.01, .005),
+                         C = 2^(seq(-6, -2, length = 10)))
 
 set.seed(476)
 svmPFitFull <- train(x = training[,fullSet], 
@@ -268,9 +268,9 @@ svmPFitFull <- train(x = training[,fullSet],
                      trControl = ctrl)
 svmPFitFull
 
-svmPGrid2 <-  expand.grid(.degree = 1:2,
-                          .scale = c(0.01, .005),
-                          .C = 2^(seq(-6, -2, length = 10)))
+svmPGrid2 <-  expand.grid(degree = 1:2,
+                          scale = c(0.01, .005),
+                          C = 2^(seq(-6, -2, length = 10)))
 set.seed(476)
 svmPFitReduced <- train(x = training[,reducedSet], 
                         y = training$Class,
@@ -335,7 +335,7 @@ knnFit <- train(x = training[,reducedSet],
                 method = "knn",
                 metric = "ROC",
                 preProc = c("center", "scale"),
-                tuneGrid = data.frame(.k = c(4*(0:5)+1,20*(1:5)+1,50*(2:9)+1)),
+                tuneGrid = data.frame(k = c(4*(0:5)+1,20*(1:5)+1,50*(2:9)+1)),
                 trControl = ctrl)
 knnFit
 
@@ -381,7 +381,7 @@ nBayesFit <- train(x = nbTraining[,nbPredictors],
                    y = nbTraining$Class,
                    method = "nb",
                    metric = "ROC",
-                   tuneGrid = data.frame(.usekernel = c(TRUE, FALSE), .fL = 2),
+                   tuneGrid = data.frame(usekernel = c(TRUE, FALSE), fL = 2),
                    trControl = ctrl)
 nBayesFit
 

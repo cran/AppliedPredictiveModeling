@@ -36,6 +36,7 @@ library(AppliedPredictiveModeling)
 data(concrete)
 
 library(caret)
+library(plyr)
 
 featurePlot(concrete[, -9], concrete$CompressiveStrength,
             between = list(x = 1, y = 1),
@@ -99,8 +100,8 @@ plsFit <- train(modForm, data = training,
                 tuneLength = 15,
                 trControl = ctrl)
 
-lassoGrid <- expand.grid(.lambda = c(0, .001, .01, .1), 
-                         .fraction = seq(0.05, 1, length = 20))
+lassoGrid <- expand.grid(lambda = c(0, .001, .01, .1), 
+                         fraction = seq(0.05, 1, length = 20))
 set.seed(669)
 lassoFit <- train(modForm, data = training,
                   method = "enet",
@@ -111,8 +112,8 @@ lassoFit <- train(modForm, data = training,
 set.seed(669)
 earthFit <- train(CompressiveStrength ~ ., data = training,
                   method = "earth",
-                  tuneGrid = expand.grid(.degree = 1, 
-                                         .nprune = 2:25),
+                  tuneGrid = expand.grid(degree = 1, 
+                                         nprune = 2:25),
                   trControl = ctrl)
 
 set.seed(669)
@@ -123,9 +124,9 @@ svmRFit <- train(CompressiveStrength ~ ., data = training,
                  trControl = ctrl)
 
 
-nnetGrid <- expand.grid(.decay = c(0.001, .01, .1), 
-                        .size = seq(1, 27, by = 2), 
-                        .bag = FALSE)
+nnetGrid <- expand.grid(decay = c(0.001, .01, .1), 
+                        size = seq(1, 27, by = 2), 
+                        bag = FALSE)
 set.seed(669)
 nnetFit <- train(CompressiveStrength ~ .,
                  data = training,
@@ -168,9 +169,9 @@ rfFit <- train(CompressiveStrength ~ .,
                trControl = ctrl)
 
 
-gbmGrid <- expand.grid(.interaction.depth = seq(1, 7, by = 2),
-                       .n.trees = seq(100, 1000, by = 50),
-                       .shrinkage = c(0.01, 0.1))
+gbmGrid <- expand.grid(interaction.depth = seq(1, 7, by = 2),
+                       n.trees = seq(100, 1000, by = 50),
+                       shrinkage = c(0.01, 0.1))
 set.seed(669)
 gbmFit <- train(CompressiveStrength ~ .,
                 data = training,
@@ -180,8 +181,8 @@ gbmFit <- train(CompressiveStrength ~ .,
                 trControl = ctrl)
 
 
-cbGrid <- expand.grid(.committees = c(1, 5, 10, 50, 75, 100), 
-                      .neighbors = c(0, 1, 3, 5, 7, 9))
+cbGrid <- expand.grid(committees = c(1, 5, 10, 50, 75, 100), 
+                      neighbors = c(0, 1, 3, 5, 7, 9))
 set.seed(669)
 cbFit <- train(CompressiveStrength ~ .,
                data = training,

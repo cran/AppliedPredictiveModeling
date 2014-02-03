@@ -1,5 +1,5 @@
 
-R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+R version 3.0.1 (2013-05-16) -- "Good Sport"
 Copyright (C) 2013 The R Foundation for Statistical Computing
 Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
@@ -51,12 +51,6 @@ Type 'q()' to quit R.
 > ### Section 3.1 Case Study: Cell Segmentation in High-Content Screening
 > 
 > library(AppliedPredictiveModeling)
-Loading required package: CORElearn
-Loading required package: cluster
-Loading required package: rpart
-Loading required package: MASS
-Loading required package: plyr
-Loading required package: reshape2
 > data(segmentationOriginal)
 > 
 > ## Retain the original training set
@@ -81,8 +75,8 @@ Loading required package: class
 [1] 2.391624
 > 
 > library(caret)
-Loading required package: foreach
 Loading required package: lattice
+Loading required package: ggplot2
 > 
 > ## Use caret's preProcess function to transform for skewness
 > segPP <- preProcess(segTrainX, method = "BoxCox")
@@ -259,12 +253,72 @@ Estimated Lambda: -1.1
 > ## caret's findCorrelation function is used to identify columns to remove.
 > highCorr <- findCorrelation(segCorr, .75)
 > 
+> ################################################################################
+> ### Section 3.8 Computing (Creating Dummy Variables)
+> 
+> data(cars)
+> type <- c("convertible", "coupe", "hatchback", "sedan", "wagon")
+> cars$Type <- factor(apply(cars[, 14:18], 1, function(x) type[which(x == 1)]))
+> 
+> carSubset <- cars[sample(1:nrow(cars), 20), c(1, 2, 19)]
+> 
+> head(carSubset)
+       Price Mileage      Type
+415 51154.05    2202     sedan
+503 14116.92   12878     sedan
+484 18620.87   25516     sedan
+642 19423.17   25557     sedan
+337 11391.21   21421 hatchback
+121 20538.09   15066     sedan
+> levels(carSubset$Type)
+[1] "convertible" "coupe"       "hatchback"   "sedan"       "wagon"      
+> 
+> simpleMod <- dummyVars(~Mileage + Type,
++                        data = carSubset,
++                        ## Remove the variable name from the
++                        ## column name
++                        levelsOnly = TRUE)
+> simpleMod
+Dummy Variable Object
+
+Formula: ~Mileage + Type
+2 variables, 1 factors
+Factor variable names will be removed
+A less than full rank encoding is used
+> 
+> withInteraction <- dummyVars(~Mileage + Type + Mileage:Type,
++                              data = carSubset,
++                              levelsOnly = TRUE)
+> withInteraction
+Dummy Variable Object
+
+Formula: ~Mileage + Type + Mileage:Type
+2 variables, 1 factors
+Factor variable names will be removed
+A less than full rank encoding is used
+> predict(withInteraction, head(carSubset))
+    Mileage convertible coupe hatchback sedan wagon Mileage:convertible
+415    2202           0     0         0     1     0                   0
+503   12878           0     0         0     1     0                   0
+484   25516           0     0         0     1     0                   0
+642   25557           0     0         0     1     0                   0
+337   21421           0     0         1     0     0                   0
+121   15066           0     0         0     1     0                   0
+    Mileage:coupe Mileage:hatchback Mileage:sedan Mileage:wagon
+415             0                 0          2202             0
+503             0                 0         12878             0
+484             0                 0         25516             0
+642             0                 0         25557             0
+337             0             21421             0             0
+121             0                 0         15066             0
+> 
+> 
 > 
 > ################################################################################
 > ### Session Information
 > 
 > sessionInfo()
-R version 3.0.0 RC (2013-03-27 r62426)
+R version 3.0.1 (2013-05-16)
 Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
 locale:
@@ -274,19 +328,20 @@ attached base packages:
 [1] stats     graphics  grDevices utils     datasets  methods   base     
 
 other attached packages:
- [1] corrplot_0.71                    ellipse_0.3-7                   
- [3] caret_5.16-04                    lattice_0.20-15                 
- [5] foreach_1.4.0                    e1071_1.6-1                     
- [7] class_7.3-7                      AppliedPredictiveModeling_1.01-1
- [9] reshape2_1.2.2                   plyr_1.8                        
-[11] MASS_7.3-26                      CORElearn_0.9.41                
-[13] rpart_4.1-1                      cluster_1.14.4                  
+[1] corrplot_0.71                   ellipse_0.3-8                  
+[3] MASS_7.3-26                     caret_6.0-22                   
+[5] ggplot2_0.9.3.1                 lattice_0.20-15                
+[7] e1071_1.6-1                     class_7.3-7                    
+[9] AppliedPredictiveModeling_1.1-5
 
 loaded via a namespace (and not attached):
-[1] codetools_0.2-8 grid_3.0.0      iterators_1.0.6 stringr_0.6.2  
-[5] tools_3.0.0    
+ [1] car_2.0-17         codetools_0.2-8    colorspace_1.2-2   CORElearn_0.9.41  
+ [5] dichromat_2.0-0    digest_0.6.3       foreach_1.4.0      grid_3.0.1        
+ [9] gtable_0.1.2       iterators_1.0.6    labeling_0.1       munsell_0.4       
+[13] plyr_1.8           proto_0.3-10       RColorBrewer_1.0-5 reshape2_1.2.2    
+[17] scales_0.2.3       stringr_0.6.2      tools_3.0.1       
 > 
 > q("no")
 > proc.time()
    user  system elapsed 
-  5.551   0.143   5.686 
+  5.791   0.147   6.146 

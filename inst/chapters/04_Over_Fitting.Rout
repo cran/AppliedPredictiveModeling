@@ -1,5 +1,5 @@
 
-R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+R version 3.0.1 (2013-05-16) -- "Good Sport"
 Copyright (C) 2013 The R Foundation for Statistical Computing
 Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
@@ -50,11 +50,8 @@ Type 'q()' to quit R.
 > ### Section 4.6 Choosing Final Tuning Parameters
 > 
 > library(caret)
-Loading required package: cluster
-Loading required package: foreach
 Loading required package: lattice
-Loading required package: plyr
-Loading required package: reshape2
+Loading required package: ggplot2
 > data(GermanCredit)
 > 
 > ## First, remove near-zero variance predictors then get rid of a few predictors 
@@ -87,10 +84,7 @@ Loading required package: reshape2
 > library(kernlab)
 > set.seed(231)
 > sigDist <- sigest(Class ~ ., data = GermanCreditTrain, frac = 1)
-> svmTuneGrid <- data.frame(.sigma = sigDist[1], .C = 2^(-2:7))
-Warning message:
-In data.frame(.sigma = sigDist[1], .C = 2^(-2:7)) :
-  row names were found from a short variable and have been discarded
+> svmTuneGrid <- data.frame(sigma = as.vector(sigDist)[1], C = 2^(-2:7))
 > 
 > ### Optional: parallel processing can be used via the 'do' packages,
 > ### such as doMC, doMPI etc. We used doMC (not on Windows) to speed
@@ -102,6 +96,7 @@ In data.frame(.sigma = sigDist[1], .C = 2^(-2:7)) :
 > ### 2566M/core.
 > 
 > library(doMC)
+Loading required package: foreach
 Loading required package: iterators
 Loading required package: parallel
 > registerDoMC(4)
@@ -112,37 +107,42 @@ Loading required package: parallel
 +                 method = "svmRadial",
 +                 preProc = c("center", "scale"),
 +                 tuneGrid = svmTuneGrid,
-+                 trControl = trainControl(method = "repeatedcv", repeats = 5))
++                 trControl = trainControl(method = "repeatedcv", 
++                                          repeats = 5,
++                                          classProbs = TRUE))
 Loading required package: class
+> ## classProbs = TRUE was added since the text was written
 > 
 > ## Print the results
 > svmFit
+Support Vector Machines with Radial Basis Function Kernel 
+
 800 samples
  41 predictors
   2 classes: 'Bad', 'Good' 
 
 Pre-processing: centered, scaled 
-Resampling: Cross-Validation (10 fold, repeated 5 times) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
 
 Summary of sample sizes: 720, 720, 720, 720, 720, 720, ... 
 
 Resampling results across tuning parameters:
 
-  C     Accuracy  Kappa   Accuracy SD  Kappa SD
-  0.25  0.7       0       0            0       
-  0.5   0.713     0.0769  0.0176       0.0641  
-  1     0.74      0.27    0.0369       0.103   
-  2     0.745     0.331   0.0504       0.128   
-  4     0.741     0.339   0.0509       0.127   
-  8     0.75      0.378   0.0501       0.122   
-  16    0.749     0.386   0.0537       0.128   
-  32    0.724     0.336   0.0519       0.12    
-  64    0.72      0.331   0.0543       0.126   
-  128   0.72      0.332   0.053        0.127   
+  C     Accuracy  Kappa  Accuracy SD  Kappa SD
+  0.25  0.744     0.362  0.0499       0.113   
+  0.5   0.74      0.35   0.0516       0.117   
+  1     0.746     0.348  0.0522       0.125   
+  2     0.743     0.325  0.0467       0.116   
+  4     0.744     0.322  0.0477       0.12    
+  8     0.75      0.323  0.0464       0.13    
+  16    0.745     0.302  0.0457       0.13    
+  32    0.739     0.28   0.0451       0.126   
+  64    0.743     0.284  0.0444       0.135   
+  128   0.734     0.265  0.0445       0.124   
 
-Tuning parameter 'sigma' was held constant at a value of 0.00892
+Tuning parameter 'sigma' was held constant at a value of 0.008918477
 Accuracy was used to select the optimal model using  the largest value.
-The final values used for the model were C = 8 and sigma = 0.00892. 
+The final values used for the model were sigma = 0.00892 and C = 8. 
 > 
 > ## A line plot of the average performance. The 'scales' argument is actually an 
 > ## argument to xyplot that converts the x-axis to log-2 units.
@@ -153,22 +153,19 @@ The final values used for the model were C = 8 and sigma = 0.00892.
 > 
 > predictedClasses <- predict(svmFit, GermanCreditTest)
 > str(predictedClasses)
- Factor w/ 2 levels "Bad","Good": 1 1 2 2 1 2 2 2 1 1 ...
+ Factor w/ 2 levels "Bad","Good": 1 2 2 2 1 2 2 2 1 2 ...
 > 
 > ## Use the "type" option to get class probabilities
 > 
 > predictedProbs <- predict(svmFit, newdata = GermanCreditTest, type = "prob")
-Warning message:
-In probFunction(method, modelFit, ppUnk) :
-  kernlab class probability calculations failed; returning NAs
 > head(predictedProbs)
-  Bad Good
-1  NA   NA
-2  NA   NA
-3  NA   NA
-4  NA   NA
-5  NA   NA
-6  NA   NA
+         Bad      Good
+1 0.56094118 0.4390588
+2 0.47684821 0.5231518
+3 0.30632069 0.6936793
+4 0.09835051 0.9016495
+5 0.57531768 0.4246823
+6 0.14280149 0.8571985
 > 
 > 
 > ## Fit the same model using different resampling methods. The main syntax change
@@ -182,12 +179,14 @@ In probFunction(method, modelFit, ppUnk) :
 +                     tuneGrid = svmTuneGrid,
 +                     trControl = trainControl(method = "cv", number = 10))
 > svmFit10CV
+Support Vector Machines with Radial Basis Function Kernel 
+
 800 samples
  41 predictors
   2 classes: 'Bad', 'Good' 
 
 Pre-processing: centered, scaled 
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 720, 720, 720, 720, 720, 720, ... 
 
@@ -205,9 +204,9 @@ Resampling results across tuning parameters:
   64    0.729     0.349   0.0472       0.108   
   128   0.729     0.352   0.0468       0.108   
 
-Tuning parameter 'sigma' was held constant at a value of 0.00892
+Tuning parameter 'sigma' was held constant at a value of 0.008918477
 Accuracy was used to select the optimal model using  the largest value.
-The final values used for the model were C = 16 and sigma = 0.00892. 
+The final values used for the model were sigma = 0.00892 and C = 16. 
 > 
 > set.seed(1056)
 > svmFitLOO <- train(Class ~ .,
@@ -217,12 +216,14 @@ The final values used for the model were C = 16 and sigma = 0.00892.
 +                    tuneGrid = svmTuneGrid,
 +                    trControl = trainControl(method = "LOOCV"))
 > svmFitLOO
+Support Vector Machines with Radial Basis Function Kernel 
+
 800 samples
  41 predictors
   2 classes: 'Bad', 'Good' 
 
 Pre-processing: centered, scaled 
-Resampling: Leave-One-Out Cross-Validation 
+Resampling: 
 
 Summary of sample sizes: 799, 799, 799, 799, 799, 799, ... 
 
@@ -240,9 +241,9 @@ Resampling results across tuning parameters:
   64    0.716     0.327
   128   0.72      0.333
 
-Tuning parameter 'sigma' was held constant at a value of 0.00892
+Tuning parameter 'sigma' was held constant at a value of 0.008918477
 Accuracy was used to select the optimal model using  the largest value.
-The final values used for the model were C = 8 and sigma = 0.00892. 
+The final values used for the model were sigma = 0.00892 and C = 8. 
 > 
 > set.seed(1056)
 > svmFitLGO <- train(Class ~ .,
@@ -254,12 +255,14 @@ The final values used for the model were C = 8 and sigma = 0.00892.
 +                                             number = 50, 
 +                                             p = .8))
 > svmFitLGO 
+Support Vector Machines with Radial Basis Function Kernel 
+
 800 samples
  41 predictors
   2 classes: 'Bad', 'Good' 
 
 Pre-processing: centered, scaled 
-Resampling: Repeated Train/Test Splits (50 reps, 0.8%) 
+Resampling: Repeated Train/Test Splits Estimated (50 reps, 0.8%) 
 
 Summary of sample sizes: 640, 640, 640, 640, 640, 640, ... 
 
@@ -277,9 +280,9 @@ Resampling results across tuning parameters:
   64    0.722     0.335   0.0293       0.0713  
   128   0.714     0.321   0.0304       0.0749  
 
-Tuning parameter 'sigma' was held constant at a value of 0.00892
+Tuning parameter 'sigma' was held constant at a value of 0.008918477
 Accuracy was used to select the optimal model using  the largest value.
-The final values used for the model were C = 8 and sigma = 0.00892. 
+The final values used for the model were sigma = 0.00892 and C = 8. 
 > 
 > set.seed(1056)
 > svmFitBoot <- train(Class ~ .,
@@ -289,12 +292,14 @@ The final values used for the model were C = 8 and sigma = 0.00892.
 +                     tuneGrid = svmTuneGrid,
 +                     trControl = trainControl(method = "boot", number = 50))
 > svmFitBoot
+Support Vector Machines with Radial Basis Function Kernel 
+
 800 samples
  41 predictors
   2 classes: 'Bad', 'Good' 
 
 Pre-processing: centered, scaled 
-Resampling: Bootstrap (50 reps) 
+Resampling: Bootstrapped (50 reps) 
 
 Summary of sample sizes: 800, 800, 800, 800, 800, 800, ... 
 
@@ -312,9 +317,9 @@ Resampling results across tuning parameters:
   64    0.723     0.33   0.023        0.0509  
   128   0.721     0.324  0.0232       0.0509  
 
-Tuning parameter 'sigma' was held constant at a value of 0.00892
+Tuning parameter 'sigma' was held constant at a value of 0.008918477
 Accuracy was used to select the optimal model using  the largest value.
-The final values used for the model were C = 4 and sigma = 0.00892. 
+The final values used for the model were sigma = 0.00892 and C = 4. 
 > 
 > set.seed(1056)
 > svmFitBoot632 <- train(Class ~ .,
@@ -325,12 +330,14 @@ The final values used for the model were C = 4 and sigma = 0.00892.
 +                        trControl = trainControl(method = "boot632", 
 +                                                 number = 50))
 > svmFitBoot632
+Support Vector Machines with Radial Basis Function Kernel 
+
 800 samples
  41 predictors
   2 classes: 'Bad', 'Good' 
 
 Pre-processing: centered, scaled 
-Resampling: Bootstrap 632 Rule (50 reps) 
+Resampling: Bootstrapped (50 reps) 
 
 Summary of sample sizes: 800, 800, 800, 800, 800, 800, ... 
 
@@ -348,9 +355,9 @@ Resampling results across tuning parameters:
   64    0.822     0.569  0.023        0.0509    0.991             0.979        
   128   0.823     0.571  0.0232       0.0509    0.998             0.994        
 
-Tuning parameter 'sigma' was held constant at a value of 0.00892
+Tuning parameter 'sigma' was held constant at a value of 0.008918477
 Accuracy was used to select the optimal model using  the largest value.
-The final values used for the model were C = 32 and sigma = 0.00892. 
+The final values used for the model were sigma = 0.00892 and C = 32. 
 > 
 > ################################################################################
 > ### Section 4.8 Choosing Between Models
@@ -362,12 +369,14 @@ The final values used for the model were C = 32 and sigma = 0.00892.
 +                     trControl = trainControl(method = "repeatedcv", 
 +                                              repeats = 5))
 > glmProfile
+Generalized Linear Model 
+
 800 samples
  41 predictors
   2 classes: 'Bad', 'Good' 
 
 No pre-processing
-Resampling: Cross-Validation (10 fold, repeated 5 times) 
+Resampling: Cross-Validated (10 fold, repeated 5 times) 
 
 Summary of sample sizes: 720, 720, 720, 720, 720, 720, ... 
 
@@ -384,31 +393,29 @@ Resampling results
 Call:
 summary.resamples(object = resamp)
 
-
-Call:
-summary.resamples(object = resamp)
-
 Models: SVM, Logistic 
 Number of resamples: 50 
 
 Accuracy 
-           Min. 1st Qu. Median  Mean 3rd Qu. Max. NA's
-SVM      0.6375  0.7125 0.7625 0.750  0.7844 0.85    0
-Logistic 0.6125  0.7250 0.7562 0.749  0.7844 0.85    0
+           Min. 1st Qu. Median   Mean 3rd Qu.  Max. NA's
+SVM      0.6500   0.725 0.7625 0.7495  0.7875 0.825    0
+Logistic 0.6125   0.725 0.7562 0.7490  0.7844 0.850    0
 
 Kappa 
             Min. 1st Qu. Median   Mean 3rd Qu.   Max. NA's
-SVM      0.08228  0.2901 0.3869 0.3779  0.4637 0.6053    0
+SVM      0.02778  0.2369 0.3488 0.3232  0.4272 0.5139    0
 Logistic 0.07534  0.2831 0.3750 0.3648  0.4504 0.6250    0
 
 > 
+> ## These results are slightly different from those shown in the text.
+> ## There are some differences in the train() function since the 
+> ## original results were produced. This is due to a difference in
+> ## predictions from the ksvm() function when class probs are requested
+> ## and when they are not. See, for example, 
+> ## https://stat.ethz.ch/pipermail/r-help/2013-November/363188.html
 > 
 > modelDifferences <- diff(resamp)
 > summary(modelDifferences)
-
-Call:
-summary.diff.resamples(object = modelDifferences)
-
 
 Call:
 summary.diff.resamples(object = modelDifferences)
@@ -418,14 +425,14 @@ Upper diagonal: estimates of the difference
 Lower diagonal: p-value for H0: difference = 0
 
 Accuracy 
-         SVM  Logistic
-SVM           0.001   
-Logistic 0.85         
+         SVM    Logistic
+SVM             5e-04   
+Logistic 0.9299         
 
 Kappa 
-         SVM   Logistic
-SVM            0.01313 
-Logistic 0.347         
+         SVM      Logistic
+SVM               -0.04154
+Logistic 0.007088         
 
 > 
 > ## The actual paired t-test:
@@ -435,13 +442,13 @@ $SVM.diff.Logistic
 	One Sample t-test
 
 data:  x
-t = 0.1901, df = 49, p-value = 0.85
+t = 0.0884, df = 49, p-value = 0.9299
 alternative hypothesis: true mean is not equal to 0
 95 percent confidence interval:
- -0.009568563  0.011568563
+ -0.01086969  0.01186969
 sample estimates:
 mean of x 
-    0.001 
+    5e-04 
 
 
 > 
@@ -449,7 +456,7 @@ mean of x
 > ### Session Information
 > 
 > sessionInfo()
-R version 3.0.0 RC (2013-03-27 r62426)
+R version 3.0.1 (2013-05-16)
 Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
 locale:
@@ -460,15 +467,18 @@ attached base packages:
 [8] base     
 
 other attached packages:
- [1] e1071_1.6-1     class_7.3-7     doMC_1.3.0      iterators_1.0.6
- [5] kernlab_0.9-16  caret_5.16-04   reshape2_1.2.2  plyr_1.8       
- [9] lattice_0.20-15 foreach_1.4.0   cluster_1.14.4 
+[1] e1071_1.6-1     class_7.3-7     doMC_1.3.0      iterators_1.0.6
+[5] foreach_1.4.0   kernlab_0.9-16  caret_6.0-22    ggplot2_0.9.3.1
+[9] lattice_0.20-15
 
 loaded via a namespace (and not attached):
-[1] codetools_0.2-8 compiler_3.0.0  grid_3.0.0      stringr_0.6.2  
-[5] tools_3.0.0    
+ [1] car_2.0-16         codetools_0.2-8    colorspace_1.2-1   compiler_3.0.1    
+ [5] dichromat_2.0-0    digest_0.6.3       grid_3.0.1         gtable_0.1.2      
+ [9] labeling_0.1       MASS_7.3-26        munsell_0.4        plyr_1.8          
+[13] proto_0.3-10       RColorBrewer_1.0-5 reshape2_1.2.2     scales_0.2.3      
+[17] stringr_0.6.2      tools_3.0.1       
 > 
 > q("no")
 > proc.time()
     user   system  elapsed 
-3160.134  208.484  884.731 
+3260.432  211.968  906.933 

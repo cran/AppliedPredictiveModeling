@@ -36,6 +36,8 @@ load("grantData.RData")
 library(caret)
 library(doMC)
 registerDoMC(12)
+library(plyr)
+library(reshape2)
 
 ## Look at two different ways to split and resample the data. A support vector
 ## machine is used to illustrate the differences. The full set of predictors
@@ -51,8 +53,8 @@ allData <- rbind(pre2008Data, year2008Data[-test2008,])
 holdout2008 <- year2008Data[test2008,]
 
 ## Use a common tuning grid for both approaches. 
-svmrGrid <- expand.grid(.sigma = c(.00007, .00009, .0001, .0002),
-                        .C = 2^(-3:8))
+svmrGrid <- expand.grid(sigma = c(.00007, .00009, .0001, .0002),
+                        C = 2^(-3:8))
 
 ## Evaluate the model using overall 10-fold cross-validation
 ctrl0 <- trainControl(method = "cv",
@@ -85,10 +87,10 @@ svmFit00
 
 ## Combine the two sets of results and plot
 
-grid0 <- subset(svmFit0$results,  sigma == svmFit0$bestTune$.sigma)
+grid0 <- subset(svmFit0$results,  sigma == svmFit0$bestTune$sigma)
 grid0$Model <- "10-Fold Cross-Validation"
 
-grid00 <- subset(svmFit00$results,  sigma == svmFit00$bestTune$.sigma)
+grid00 <- subset(svmFit00$results,  sigma == svmFit00$bestTune$sigma)
 grid00$Model <- "Single 2008 Test Set"
 
 plotData <- rbind(grid00, grid0)
@@ -167,7 +169,7 @@ lrFit <- train(x = training[,reducedSet],
                trControl = ctrl)
 lrFit
 set.seed(476)
-lrFit2 <- train(x = training[,c(predictors, "Day2")], 
+lrFit2 <- train(x = training[,c(fullSet, "Day2")], 
                 y = training$Class,
                 method = "glm",
                 metric = "ROC",
@@ -223,7 +225,7 @@ set.seed(476)
 plsFit <- train(x = training[,fullSet], 
                 y = training$Class,
                 method = "pls",
-                tuneGrid = expand.grid(.ncomp = 1:10),
+                tuneGrid = expand.grid(ncomp = 1:10),
                 preProc = c("center","scale"),
                 metric = "ROC",
                 probMethod = "Bayes",
@@ -253,7 +255,7 @@ set.seed(476)
 plsFit2 <- train(x = training[,reducedSet], 
                  y = training$Class,
                  method = "pls",
-                 tuneGrid = expand.grid(.ncomp = 1:10),
+                 tuneGrid = expand.grid(ncomp = 1:10),
                  preProc = c("center","scale"),
                  metric = "ROC",
                  probMethod = "Bayes",
@@ -295,8 +297,8 @@ plot(plsImpGrant, top=20, scales = list(y = list(cex = .95)))
 ### Section 12.5 Penalized Models
 
 ## The glmnet model
-glmnGrid <- expand.grid(.alpha = c(0,  .1,  .2, .4, .6, .8, 1),
-                        .lambda = seq(.01, .2, length = 40))
+glmnGrid <- expand.grid(alpha = c(0,  .1,  .2, .4, .6, .8, 1),
+                        lambda = seq(.01, .2, length = 40))
 set.seed(476)
 glmnFit <- train(x = training[,fullSet], 
                  y = training$Class,
@@ -340,9 +342,8 @@ set.seed(476)
 spLDAFit <- train(x = training[,fullSet], 
                   y = training$Class,
                   "sparseLDA",
-                  tuneGrid = expand.grid(
-                    .lambda = c(.1),
-                    .NumVars = c(1:20, 50, 75, 100, 250, 500, 750, 1000)),
+                  tuneGrid = expand.grid(lambda = c(.1),
+                                         NumVars = c(1:20, 50, 75, 100, 250, 500, 750, 1000)),
                   preProc = c("center", "scale"),
                   metric = "ROC",
                   trControl = ctrl)
@@ -373,7 +374,7 @@ nscFit <- train(x = training[,fullSet],
                 y = training$Class,
                 method = "pam",
                 preProc = c("center", "scale"),
-                tuneGrid = data.frame(.threshold = seq(0, 25, length = 30)),
+                tuneGrid = data.frame(threshold = seq(0, 25, length = 30)),
                 metric = "ROC",
                 trControl = ctrl)
 nscFit

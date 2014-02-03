@@ -1,5 +1,5 @@
 
-R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+R version 3.0.1 (2013-05-16) -- "Good Sport"
 Copyright (C) 2013 The R Foundation for Statistical Computing
 Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
@@ -83,10 +83,7 @@ Loading required package: lattice
 > 
 > ### Split the data into three sets: training, test and evaluation. 
 > library(caret)
-Loading required package: cluster
-Loading required package: foreach
-Loading required package: plyr
-Loading required package: reshape2
+Loading required package: ggplot2
 > 
 > set.seed(156)
 > 
@@ -146,19 +143,6 @@ Loading required package: reshape2
 > ctrlNoProb$summaryFunction <- fourStats
 > ctrlNoProb$classProbs <- FALSE
 > 
-> ### Optional: parallel processing can be used via the 'do' packages,
-> ### such as doMC, doMPI etc. We used doMC (not on Windows) to speed
-> ### up the computations.
-> 
-> ### WARNING: Be aware of how much memory is needed to parallel
-> ### process. It can very quickly overwhelm the available hardware. The
-> ### estimate of the median memory usage (VSIZE = total memory size) 
-> ### was 2800M/core. 
-> 
-> library(doMC)
-Loading required package: iterators
-Loading required package: parallel
-> registerDoMC(15)
 > 
 > set.seed(1410)
 > rfFit <- train(CARAVAN ~ ., data = trainingInd,
@@ -167,9 +151,11 @@ Loading required package: parallel
 +                ntree = 1500,
 +                tuneLength = 5,
 +                metric = "ROC")
+Loading required package: randomForest
 randomForest 4.6-7
 Type rfNews() to see new features/changes/bug fixes.
 Loading required package: pROC
+Loading required package: plyr
 Type 'citation("pROC")' for a citation.
 
 Attaching package: ‘pROC’
@@ -180,29 +166,31 @@ The following object is masked from ‘package:stats’:
 
 Loading required package: class
 > rfFit
+Random Forest 
+
 6877 samples
  503 predictors
    2 classes: 'insurance', 'noinsurance' 
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 6190, 6190, 6188, 6189, 6189, 6190, ... 
 
 Resampling results across tuning parameters:
 
   mtry  ROC    Sens    Spec   Accuracy  Kappa      ROC SD  Sens SD  Spec SD
-  2     0.63   0       1      0.94      0          0.0304  0        0      
-  7     0.671  0       1      0.94      -0.000285  0.0387  0        0.00049
-  31    0.69   0.0171  0.994  0.935     0.0186     0.0373  0.0165   0.0033 
-  126   0.695  0.0317  0.985  0.928     0.0273     0.0367  0.0201   0.00491
-  502   0.689  0.0463  0.979  0.923     0.0363     0.0423  0.0243   0.00415
+  2     0.608  0       1      0.94      0          0.0863  0        0      
+  7     0.669  0       1      0.94      -0.000285  0.0335  0        0.00049
+  31    0.689  0.0146  0.993  0.934     0.0134     0.0376  0.0171   0.00373
+  126   0.696  0.0292  0.986  0.928     0.0233     0.0387  0.0193   0.0042 
+  502   0.688  0.0365  0.98   0.923     0.0233     0.042   0.0208   0.00392
   Accuracy SD  Kappa SD
   0.000422     0       
   0.000602     0.000901
-  0.00382      0.031   
-  0.00565      0.0369  
-  0.00496      0.0381  
+  0.00447      0.0341  
+  0.00475      0.0338  
+  0.00445      0.0335  
 
 ROC was used to select the optimal model using  the largest value.
 The final value used for the model was mtry = 126. 
@@ -217,7 +205,7 @@ Call:
 roc.default(response = evalResults$CARAVAN, predictor = evalResults$RF,     levels = rev(levels(evalResults$CARAVAN)))
 
 Data: evalResults$RF in 924 controls (evalResults$CARAVAN noinsurance) < 59 cases (evalResults$CARAVAN insurance).
-Area under the curve: 0.7569
+Area under the curve: 0.7596
 > 
 > rfEvalCM <- confusionMatrix(predict(rfFit, evaluationInd), evalResults$CARAVAN)
 > rfEvalCM
@@ -243,6 +231,7 @@ Prediction    insurance noinsurance
              Prevalence : 0.060020        
          Detection Rate : 0.004069        
    Detection Prevalence : 0.013225        
+      Balanced Accuracy : 0.529028        
                                           
        'Positive' Class : insurance       
                                           
@@ -253,13 +242,16 @@ Prediction    insurance noinsurance
 +                method = "glm",
 +                trControl = ctrl,
 +                metric = "ROC")
+There were 20 warnings (use warnings() to see them)
 > lrFit
+Generalized Linear Model 
+
 6877 samples
  203 predictors
    2 classes: 'insurance', 'noinsurance' 
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 6190, 6190, 6188, 6189, 6189, 6190, ... 
 
@@ -321,6 +313,7 @@ Prediction    insurance noinsurance
              Prevalence : 0.060020        
          Detection Rate : 0.001017        
    Detection Prevalence : 0.003052        
+      Balanced Accuracy : 0.507392        
                                           
        'Positive' Class : insurance       
                                           
@@ -328,64 +321,23 @@ Prediction    insurance noinsurance
 > set.seed(1401)
 > fdaFit <- train(CARAVAN ~ ., data = training,
 +                 method = "fda",
-+                 tuneGrid = data.frame(.degree = 1, .nprune = 1:25),
++                 tuneGrid = data.frame(degree = 1, nprune = 1:25),
 +                 metric = "ROC",
 +                 trControl = ctrl)
-Loading required package: leaps
-Loading required package: leaps
-Loading required package: plotmo
-Loading required package: plotmo
-Loading required package: leaps
-Loading required package: leaps
-Loading required package: leaps
-Loading required package: leaps
-Loading required package: plotrix
-Loading required package: plotrix
-Loading required package: leaps
-Loading required package: plotmo
-Loading required package: plotmo
-Loading required package: plotmo
-Loading required package: leaps
-Loading required package: leaps
-Loading required package: plotmo
-Loading required package: leaps
-Loading required package: leaps
-Loading required package: leaps
-Loading required package: plotrix
-Loading required package: leaps
-Loading required package: plotrix
-Loading required package: plotrix
-Loading required package: plotmo
-Loading required package: plotmo
-Loading required package: plotmo
-Loading required package: plotmo
-Loading required package: plotrix
-Loading required package: plotmo
+Loading required package: earth
 Loading required package: leaps
 Loading required package: plotmo
 Loading required package: plotrix
-Loading required package: plotmo
-Loading required package: plotrix
-Loading required package: plotrix
-Loading required package: plotrix
-Loading required package: plotrix
-Loading required package: plotrix
-Loading required package: plotrix
-Loading required package: plotmo
-Loading required package: leaps
-Loading required package: plotrix
-Loading required package: plotmo
-Loading required package: plotrix
-Loading required package: leaps
-Loading required package: plotmo
-Loading required package: plotrix
+Loading required package: mda
 > fdaFit
+Flexible Discriminant Analysis 
+
 6877 samples
   85 predictors
    2 classes: 'insurance', 'noinsurance' 
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 6189, 6190, 6190, 6189, 6189, 6189, ... 
 
@@ -446,7 +398,7 @@ Resampling results across tuning parameters:
 
 Tuning parameter 'degree' was held constant at a value of 1
 ROC was used to select the optimal model using  the largest value.
-The final values used for the model were nprune = 13 and degree = 1. 
+The final values used for the model were degree = 1 and nprune = 13. 
 > 
 > evalResults$FDA <- predict(fdaFit, evaluation[, predictors], type = "prob")[,1]
 > testResults$FDA <- predict(fdaFit, testing[, predictors], type = "prob")[,1]
@@ -484,6 +436,7 @@ Prediction    insurance noinsurance
              Prevalence : 0.060020       
          Detection Rate : 0.001017       
    Detection Prevalence : 0.004069       
+      Balanced Accuracy : 0.506851       
                                          
        'Positive' Class : insurance      
                                          
@@ -509,7 +462,7 @@ Call:
 roc.default(response = evalResults$CARAVAN, predictor = evalResults$RF,     levels = rev(levels(evalResults$CARAVAN)))
 
 Data: evalResults$RF in 924 controls (evalResults$CARAVAN noinsurance) < 59 cases (evalResults$CARAVAN insurance).
-Area under the curve: 0.7569
+Area under the curve: 0.7596
 > plot(lrROC, type = "S", col = plotTheme$superpose.line$col[2], add = TRUE, legacy.axes = TRUE)
 
 Call:
@@ -555,27 +508,28 @@ Confusion Matrix and Statistics
 
              Reference
 Prediction    insurance noinsurance
-  insurance          38         223
-  noinsurance        21         701
-                                          
-               Accuracy : 0.7518          
-                 95% CI : (0.7235, 0.7785)
-    No Information Rate : 0.94            
-    P-Value [Acc > NIR] : 1               
-                                          
-                  Kappa : 0.1547          
- Mcnemar's Test P-Value : <2e-16          
-                                          
-            Sensitivity : 0.64407         
-            Specificity : 0.75866         
-         Pos Pred Value : 0.14559         
-         Neg Pred Value : 0.97091         
-             Prevalence : 0.06002         
-         Detection Rate : 0.03866         
-   Detection Prevalence : 0.26551         
-                                          
-       'Positive' Class : insurance       
-                                          
+  insurance          39         257
+  noinsurance        20         667
+                                         
+               Accuracy : 0.7182         
+                 95% CI : (0.689, 0.7462)
+    No Information Rate : 0.94           
+    P-Value [Acc > NIR] : 1              
+                                         
+                  Kappa : 0.1329         
+ Mcnemar's Test P-Value : <2e-16         
+                                         
+            Sensitivity : 0.66102        
+            Specificity : 0.72186        
+         Pos Pred Value : 0.13176        
+         Neg Pred Value : 0.97089        
+             Prevalence : 0.06002        
+         Detection Rate : 0.03967        
+   Detection Prevalence : 0.30112        
+      Balanced Accuracy : 0.69144        
+                                         
+       'Positive' Class : insurance      
+                                         
 > 
 > rfAltTestCM <- confusionMatrix(testResults$rfAlt, testResults$CARAVAN)
 > rfAltTestCM
@@ -583,27 +537,28 @@ Confusion Matrix and Statistics
 
              Reference
 Prediction    insurance noinsurance
-  insurance          71         441
-  noinsurance        45        1405
-                                          
-               Accuracy : 0.7523          
-                 95% CI : (0.7326, 0.7713)
-    No Information Rate : 0.9409          
-    P-Value [Acc > NIR] : 1               
-                                          
-                  Kappa : 0.1435          
- Mcnemar's Test P-Value : <2e-16          
-                                          
-            Sensitivity : 0.61207         
-            Specificity : 0.76111         
-         Pos Pred Value : 0.13867         
-         Neg Pred Value : 0.96897         
-             Prevalence : 0.05912         
-         Detection Rate : 0.03619         
-   Detection Prevalence : 0.26096         
-                                          
-       'Positive' Class : insurance       
-                                          
+  insurance          71         467
+  noinsurance        45        1379
+                                         
+               Accuracy : 0.739          
+                 95% CI : (0.719, 0.7584)
+    No Information Rate : 0.9409         
+    P-Value [Acc > NIR] : 1              
+                                         
+                  Kappa : 0.1328         
+ Mcnemar's Test P-Value : <2e-16         
+                                         
+            Sensitivity : 0.61207        
+            Specificity : 0.74702        
+         Pos Pred Value : 0.13197        
+         Neg Pred Value : 0.96840        
+             Prevalence : 0.05912        
+         Detection Rate : 0.03619        
+   Detection Prevalence : 0.27421        
+      Balanced Accuracy : 0.67954        
+                                         
+       'Positive' Class : insurance      
+                                         
 > 
 > rfTestCM <- confusionMatrix(predict(rfFit, testingInd), testResults$CARAVAN)
 > 
@@ -616,7 +571,7 @@ Call:
 roc.default(response = evalResults$CARAVAN, predictor = evalResults$RF,     levels = rev(levels(evalResults$CARAVAN)))
 
 Data: evalResults$RF in 924 controls (evalResults$CARAVAN noinsurance) < 59 cases (evalResults$CARAVAN insurance).
-Area under the curve: 0.7569
+Area under the curve: 0.7596
 > 
 > ################################################################################
 > ### Section 16.5 Adjusting Prior Probabilities
@@ -651,6 +606,7 @@ Prediction    insurance noinsurance
              Prevalence : 0.06002         
          Detection Rate : 0.04273         
    Detection Prevalence : 0.35402         
+      Balanced Accuracy : 0.69035         
                                           
        'Positive' Class : insurance       
                                           
@@ -699,9 +655,6 @@ The following object is masked from ‘package:e1071’:
     permutations
 
 Loading required package: gdata
-'.path.package' is deprecated.
-Use 'path.package' instead.
-See help("Deprecated")
 gdata: read.xls support for 'XLS' (Excel 97-2004) files ENABLED.
 
 gdata: read.xls support for 'XLSX' (Excel 2007+) files ENABLED.
@@ -739,6 +692,7 @@ The following object is masked from ‘package:stats’:
 
 Loading required package: rpart
 Loading required package: abind
+Loading required package: cluster
 
 Attaching package: ‘DMwR’
 
@@ -746,6 +700,10 @@ The following object is masked from ‘package:plyr’:
 
     join
 
+Warning message:
+'.path.package' is deprecated.
+Use 'path.package' instead.
+See help("Deprecated") 
 > set.seed(1237)
 > smoted <- SMOTE(CARAVAN ~ ., data = trainingInd)
 > 
@@ -757,29 +715,31 @@ The following object is masked from ‘package:plyr’:
 +                 tuneLength = 5,
 +                 metric = "ROC")
 > rfDown
+Random Forest 
+
 822 samples
 503 predictors
   2 classes: 'insurance', 'noinsurance' 
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 740, 740, 739, 739, 740, 740, ... 
 
 Resampling results across tuning parameters:
 
   mtry  ROC    Sens   Spec   Accuracy  Kappa  ROC SD  Sens SD  Spec SD
-  2     0.693  0.638  0.645  0.641     0.283  0.0683  0.0931   0.117  
-  7     0.68   0.618  0.657  0.638     0.275  0.068   0.0781   0.112  
-  31    0.693  0.633  0.652  0.642     0.285  0.0627  0.0685   0.0792 
-  126   0.697  0.635  0.659  0.647     0.295  0.0567  0.0653   0.073  
-  502   0.682  0.628  0.637  0.633     0.265  0.0547  0.0619   0.0809 
+  2     0.698  0.652  0.648  0.65      0.3    0.0724  0.0921   0.12   
+  7     0.682  0.608  0.677  0.642     0.285  0.0712  0.0715   0.1    
+  31    0.69   0.623  0.662  0.642     0.285  0.0582  0.0719   0.079  
+  126   0.698  0.628  0.657  0.642     0.285  0.056   0.0655   0.0886 
+  502   0.683  0.618  0.63   0.624     0.248  0.0575  0.0516   0.0818 
   Accuracy SD  Kappa SD
-  0.0619       0.124   
-  0.0641       0.128   
-  0.0556       0.111   
-  0.0464       0.0928  
-  0.0403       0.0807  
+  0.0764       0.152   
+  0.064        0.128   
+  0.0513       0.103   
+  0.0489       0.0979  
+  0.0413       0.0827  
 
 ROC was used to select the optimal model using  the largest value.
 The final value used for the model was mtry = 126. 
@@ -794,7 +754,7 @@ Call:
 roc.default(response = evalResults$CARAVAN, predictor = evalResults$RFdown,     levels = rev(levels(evalResults$CARAVAN)))
 
 Data: evalResults$RFdown in 924 controls (evalResults$CARAVAN noinsurance) < 59 cases (evalResults$CARAVAN insurance).
-Area under the curve: 0.7937
+Area under the curve: 0.7922
 > 
 > set.seed(1401)
 > rfDownInt <- train(CARAVAN ~ ., data = trainingInd,
@@ -806,29 +766,31 @@ Area under the curve: 0.7937
 +                    metric = "ROC",
 +                    trControl = ctrl)
 > rfDownInt
+Random Forest 
+
 6877 samples
  503 predictors
    2 classes: 'insurance', 'noinsurance' 
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 6189, 6190, 6190, 6189, 6189, 6189, ... 
 
 Resampling results across tuning parameters:
 
   mtry  ROC    Sens   Spec   Accuracy  Kappa  ROC SD  Sens SD  Spec SD
-  2     0.7    0.151  0.969  0.92      0.145  0.0311  0.0363   0.00479
-  7     0.706  0.426  0.836  0.812     0.135  0.0317  0.077    0.0192 
-  31    0.719  0.411  0.86   0.833     0.155  0.0266  0.0588   0.0189 
-  126   0.722  0.436  0.845  0.82      0.149  0.032   0.0671   0.0176 
-  502   0.718  0.467  0.824  0.803     0.144  0.036   0.0623   0.0195 
+  2     0.703  0.144  0.97   0.92      0.138  0.0353  0.0409   0.00587
+  7     0.704  0.424  0.835  0.81      0.133  0.0284  0.0737   0.0204 
+  31    0.72   0.414  0.857  0.831     0.154  0.0286  0.0601   0.0188 
+  126   0.722  0.424  0.841  0.816     0.14   0.0306  0.0667   0.0171 
+  502   0.718  0.465  0.824  0.802     0.141  0.0356  0.0692   0.021  
   Accuracy SD  Kappa SD
-  0.00577      0.0454  
-  0.0172       0.0367  
-  0.0175       0.0352  
-  0.0167       0.037   
-  0.0191       0.0359  
+  0.00682      0.0535  
+  0.0176       0.0323  
+  0.0183       0.0401  
+  0.0167       0.0374  
+  0.0201       0.0373  
 
 ROC was used to select the optimal model using  the largest value.
 The final value used for the model was mtry = 126. 
@@ -844,7 +806,7 @@ Call:
 roc.default(response = evalResults$CARAVAN, predictor = evalResults$RFdownInt,     levels = rev(levels(training$CARAVAN)))
 
 Data: evalResults$RFdownInt in 924 controls (evalResults$CARAVAN noinsurance) < 59 cases (evalResults$CARAVAN insurance).
-Area under the curve: 0.7915
+Area under the curve: 0.7962
 > 
 > set.seed(1410)
 > rfUp <- train(Class ~ ., data = upSampled,
@@ -854,32 +816,34 @@ Area under the curve: 0.7915
 +               tuneLength = 5,
 +               metric = "ROC")
 > rfUp
+Random Forest 
+
 12932 samples
   503 predictors
     2 classes: 'insurance', 'noinsurance' 
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 11640, 11638, 11639, 11638, 11638, 11640, ... 
 
 Resampling results across tuning parameters:
 
   mtry  ROC    Sens   Spec   Accuracy  Kappa  ROC SD   Sens SD  Spec SD
-  2     0.864  0.836  0.727  0.782     0.563  0.011    0.0123   0.0183 
-  7     0.987  0.993  0.86   0.926     0.853  0.00383  0.00384  0.0245 
-  31    0.993  0.999  0.938  0.969     0.937  0.00309  0.00167  0.0131 
-  126   0.993  1      0.951  0.976     0.951  0.00287  0        0.0107 
-  502   0.992  1      0.943  0.971     0.943  0.00381  0        0.0123 
+  2     0.865  0.836  0.731  0.783     0.567  0.0115   0.00971  0.0186 
+  7     0.987  0.992  0.861  0.927     0.853  0.00354  0.00375  0.0226 
+  31    0.993  0.999  0.938  0.968     0.937  0.00309  0.00167  0.0127 
+  126   0.992  1      0.95   0.975     0.95   0.00345  0        0.0103 
+  502   0.992  1      0.943  0.971     0.943  0.00379  0        0.0136 
   Accuracy SD  Kappa SD
-  0.00817      0.0163  
-  0.0113       0.0226  
-  0.00689      0.0138  
-  0.00534      0.0107  
-  0.00615      0.0123  
+  0.0112       0.0224  
+  0.01         0.02    
+  0.00668      0.0134  
+  0.00515      0.0103  
+  0.00681      0.0136  
 
 ROC was used to select the optimal model using  the largest value.
-The final value used for the model was mtry = 126. 
+The final value used for the model was mtry = 31. 
 > 
 > evalResults$RFup <- predict(rfUp, evaluationInd, type = "prob")[,1]
 > testResults$RFup <- predict(rfUp, testingInd, type = "prob")[,1]
@@ -891,7 +855,7 @@ Call:
 roc.default(response = evalResults$CARAVAN, predictor = evalResults$RFup,     levels = rev(levels(evalResults$CARAVAN)))
 
 Data: evalResults$RFup in 924 controls (evalResults$CARAVAN noinsurance) < 59 cases (evalResults$CARAVAN insurance).
-Area under the curve: 0.7522
+Area under the curve: 0.7336
 > 
 > set.seed(1410)
 > rfSmote <- train(CARAVAN ~ ., data = smoted,
@@ -901,29 +865,31 @@ Area under the curve: 0.7522
 +                  tuneLength = 5,
 +                  metric = "ROC")
 > rfSmote
+Random Forest 
+
 2877 samples
  503 predictors
    2 classes: 'insurance', 'noinsurance' 
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 2590, 2589, 2589, 2590, 2588, 2590, ... 
 
 Resampling results across tuning parameters:
 
   mtry  ROC    Sens   Spec   Accuracy  Kappa  ROC SD  Sens SD  Spec SD
-  2     0.905  0.665  0.998  0.855     0.692  0.022   0.0304   0.00409
-  7     0.908  0.694  0.973  0.853     0.69   0.0173  0.027    0.0218 
-  31    0.914  0.731  0.948  0.855     0.697  0.0163  0.0262   0.0231 
-  126   0.919  0.734  0.94   0.852     0.69   0.0142  0.0239   0.0208 
-  502   0.912  0.741  0.927  0.847     0.682  0.0154  0.022    0.0288 
+  2     0.906  0.666  0.998  0.856     0.693  0.0215  0.0322   0.00409
+  7     0.908  0.69   0.973  0.852     0.687  0.0177  0.0299   0.0241 
+  31    0.914  0.731  0.947  0.854     0.695  0.0168  0.0243   0.0223 
+  126   0.918  0.736  0.942  0.853     0.693  0.0146  0.0231   0.0208 
+  502   0.912  0.742  0.923  0.845     0.678  0.0151  0.0201   0.0306 
   Accuracy SD  Kappa SD
-  0.0134       0.0297  
-  0.0198       0.0416  
-  0.019        0.0395  
-  0.0167       0.0347  
-  0.0218       0.0445  
+  0.0142       0.0314  
+  0.0215       0.0451  
+  0.0183       0.0378  
+  0.0154       0.0319  
+  0.0211       0.0428  
 
 ROC was used to select the optimal model using  the largest value.
 The final value used for the model was mtry = 126. 
@@ -938,7 +904,7 @@ Call:
 roc.default(response = evalResults$CARAVAN, predictor = evalResults$RFsmote,     levels = rev(levels(evalResults$CARAVAN)))
 
 Data: evalResults$RFsmote in 924 controls (evalResults$CARAVAN noinsurance) < 59 cases (evalResults$CARAVAN insurance).
-Area under the curve: 0.7663
+Area under the curve: 0.7675
 > 
 > rfSmoteCM <- confusionMatrix(predict(rfSmote, evaluationInd), evalResults$CARAVAN)
 > rfSmoteCM
@@ -946,24 +912,25 @@ Confusion Matrix and Statistics
 
              Reference
 Prediction    insurance noinsurance
-  insurance          11          53
-  noinsurance        48         871
+  insurance          11          50
+  noinsurance        48         874
                                           
-               Accuracy : 0.8973          
-                 95% CI : (0.8766, 0.9155)
+               Accuracy : 0.9003          
+                 95% CI : (0.8799, 0.9183)
     No Information Rate : 0.94            
     P-Value [Acc > NIR] : 1.0000          
                                           
-                  Kappa : 0.1242          
- Mcnemar's Test P-Value : 0.6906          
+                  Kappa : 0.1303          
+ Mcnemar's Test P-Value : 0.9195          
                                           
             Sensitivity : 0.18644         
-            Specificity : 0.94264         
-         Pos Pred Value : 0.17187         
-         Neg Pred Value : 0.94777         
+            Specificity : 0.94589         
+         Pos Pred Value : 0.18033         
+         Neg Pred Value : 0.94794         
              Prevalence : 0.06002         
          Detection Rate : 0.01119         
-   Detection Prevalence : 0.06511         
+   Detection Prevalence : 0.06205         
+      Balanced Accuracy : 0.56616         
                                           
        'Positive' Class : insurance       
                                           
@@ -997,11 +964,11 @@ Prediction    insurance noinsurance
 > 
 > rfResults
                               evROC     tsROC   tsSens   tsSpec
-Original                  0.7569337 0.7377811 64.40678 75.86580
-Down--Sampling            0.7936936 0.7302719 81.35593 70.34632
-Down--Sampling (Internal) 0.7915474 0.7643227 77.96610 68.29004
-Up--Sampling              0.7522379 0.7348391 72.88136 65.58442
-SMOTE                     0.7663255 0.7360509 79.66102 65.47619
+Original                  0.7596119 0.7360673 66.10169 72.18615
+Down--Sampling            0.7921894 0.7291301 86.44068 67.74892
+Down--Sampling (Internal) 0.7961516 0.7649158 66.10169 80.30303
+Up--Sampling              0.7336195 0.7408283 72.88136 63.96104
+SMOTE                     0.7675178 0.7318643 81.35593 65.36797
 > 
 > rocCols <- c("black", rgb(1, 0, 0, .5), rgb(0, 0, 1, .5))
 > 
@@ -1012,7 +979,7 @@ Call:
 roc.default(response = testResults$CARAVAN, predictor = testResults$RF,     levels = rev(levels(testResults$CARAVAN)))
 
 Data: testResults$RF in 1846 controls (testResults$CARAVAN noinsurance) < 116 cases (testResults$CARAVAN insurance).
-Area under the curve: 0.7378
+Area under the curve: 0.7361
 > plot(roc(testResults$CARAVAN, testResults$RFdownInt, levels = rev(levels(testResults$CARAVAN))),
 +      type = "S", col = rocCols[2],add = TRUE, legacy.axes = TRUE)
 
@@ -1020,7 +987,7 @@ Call:
 roc.default(response = testResults$CARAVAN, predictor = testResults$RFdownInt,     levels = rev(levels(testResults$CARAVAN)))
 
 Data: testResults$RFdownInt in 1846 controls (testResults$CARAVAN noinsurance) < 116 cases (testResults$CARAVAN insurance).
-Area under the curve: 0.7643
+Area under the curve: 0.7649
 > plot(roc(testResults$CARAVAN, testResults$RFsmote, levels = rev(levels(testResults$CARAVAN))),
 +      type = "S", col = rocCols[3], add = TRUE, legacy.axes = TRUE)
 
@@ -1028,7 +995,7 @@ Call:
 roc.default(response = testResults$CARAVAN, predictor = testResults$RFsmote,     levels = rev(levels(testResults$CARAVAN)))
 
 Data: testResults$RFsmote in 1846 controls (testResults$CARAVAN noinsurance) < 116 cases (testResults$CARAVAN insurance).
-Area under the curve: 0.7361
+Area under the curve: 0.7319
 > legend(.6, .4,
 +        c("Normal", "Down-Sampling (Internal)", "SMOTE"),
 +        lty = rep(1, 3),
@@ -1052,8 +1019,8 @@ Area under the curve: 0.7361
 > sigma <- sigest(CARAVAN ~ ., data = trainingInd[, noNZVSet], frac = .75)
 > names(sigma) <- NULL
 > 
-> svmGrid1 <- data.frame(.sigma = sigma[2],
-+                        .C = 2^c(2:10))
+> svmGrid1 <- data.frame(sigma = sigma[2],
++                        C = 2^c(2:10))
 > 
 > set.seed(1401)
 > svmFit <- train(CARAVAN ~ .,
@@ -1064,41 +1031,43 @@ Area under the curve: 0.7361
 +                 metric = "Kappa",
 +                 trControl = ctrl)
 > svmFit
+Support Vector Machines with Radial Basis Function Kernel 
+
 6877 samples
  203 predictors
    2 classes: 'insurance', 'noinsurance' 
 
 Pre-processing: centered, scaled 
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 6189, 6190, 6190, 6189, 6189, 6189, ... 
 
 Resampling results across tuning parameters:
 
-  C     ROC    Sens     Spec   Accuracy  Kappa      ROC SD  Sens SD  Spec SD
-  4     0.665  0        0.999  0.939     -0.00225   0.0465  0        0.00122
-  8     0.671  0        0.996  0.936     -0.00734   0.0476  0        0.00207
-  16    0.678  0.00732  0.993  0.934     -0.000274  0.041   0.0118   0.00159
-  32    0.678  0.0413   0.982  0.926     0.0341     0.0368  0.02     0.00388
-  64    0.668  0.0901   0.968  0.916     0.0706     0.0399  0.0461   0.00846
-  128   0.655  0.105    0.958  0.907     0.0712     0.039   0.0366   0.00951
-  256   0.648  0.114    0.953  0.903     0.0745     0.0395  0.0367   0.0104 
-  512   0.644  0.112    0.953  0.902     0.07       0.0401  0.0369   0.0111 
-  1020  0.643  0.117    0.952  0.902     0.0738     0.037   0.0429   0.01   
+  C     ROC    Sens  Spec  Accuracy  Kappa      ROC SD  Sens SD  Spec SD 
+  4     0.665  0     1     0.94      -0.000285  0.0465  0        0.000489
+  8     0.671  0     1     0.94      0          0.0476  0        0       
+  16    0.678  0     1     0.94      0          0.041   0        0       
+  32    0.678  0     1     0.94      0          0.0368  0        0       
+  64    0.668  0     1     0.94      0          0.0399  0        0       
+  128   0.655  0     1     0.94      0          0.039   0        0       
+  256   0.648  0     1     0.94      0          0.0395  0        0       
+  512   0.644  0     1     0.94      0          0.0401  0        0       
+  1020  0.643  0     1     0.94      0          0.037   0        0       
   Accuracy SD  Kappa SD
-  0.00125      0.00221 
-  0.00212      0.00346 
-  0.00182      0.0202  
-  0.00358      0.0263  
-  0.00765      0.0486  
-  0.00961      0.0446  
-  0.0109       0.0472  
-  0.011        0.0437  
-  0.0101       0.0475  
+  6e-04        9e-04   
+  0.000452     0       
+  0.000452     0       
+  0.000452     0       
+  0.000452     0       
+  0.000452     0       
+  0.000452     0       
+  0.000452     0       
+  0.000452     0       
 
-Tuning parameter 'sigma' was held constant at a value of 0.00245
+Tuning parameter 'sigma' was held constant at a value of 0.002454182
 Kappa was used to select the optimal model using  the largest value.
-The final values used for the model were C = 256 and sigma = 0.00245. 
+The final values used for the model were sigma = 0.00245 and C = 8. 
 > 
 > evalResults$SVM <- predict(svmFit, evaluationInd[, noNZVSet], type = "prob")[,1]
 > testResults$SVM <- predict(svmFit, testingInd[, noNZVSet], type = "prob")[,1]
@@ -1110,7 +1079,7 @@ Call:
 roc.default(response = evalResults$CARAVAN, predictor = evalResults$SVM,     levels = rev(levels(evalResults$CARAVAN)))
 
 Data: evalResults$SVM in 924 controls (evalResults$CARAVAN noinsurance) < 59 cases (evalResults$CARAVAN insurance).
-Area under the curve: 0.6923
+Area under the curve: 0.6952
 > 
 > svmTestROC <- roc(testResults$CARAVAN, testResults$SVM,
 +                   levels = rev(levels(testResults$CARAVAN)))
@@ -1120,121 +1089,102 @@ Call:
 roc.default(response = testResults$CARAVAN, predictor = testResults$SVM,     levels = rev(levels(testResults$CARAVAN)))
 
 Data: testResults$SVM in 1846 controls (testResults$CARAVAN noinsurance) < 116 cases (testResults$CARAVAN insurance).
-Area under the curve: 0.6704
+Area under the curve: 0.6974
 > 
 > confusionMatrix(predict(svmFit, evaluationInd[, noNZVSet]), evalResults$CARAVAN)
 Confusion Matrix and Statistics
 
              Reference
 Prediction    insurance noinsurance
-  insurance           5          45
-  noinsurance        54         879
-                                          
-               Accuracy : 0.8993          
-                 95% CI : (0.8788, 0.9174)
-    No Information Rate : 0.94            
-    P-Value [Acc > NIR] : 1.0000          
-                                          
-                  Kappa : 0.0388          
- Mcnemar's Test P-Value : 0.4214          
-                                          
-            Sensitivity : 0.084746        
-            Specificity : 0.951299        
-         Pos Pred Value : 0.100000        
-         Neg Pred Value : 0.942122        
-             Prevalence : 0.060020        
-         Detection Rate : 0.005086        
-   Detection Prevalence : 0.050865        
-                                          
-       'Positive' Class : insurance       
-                                          
+  insurance           0           0
+  noinsurance        59         924
+                                         
+               Accuracy : 0.94           
+                 95% CI : (0.9233, 0.954)
+    No Information Rate : 0.94           
+    P-Value [Acc > NIR] : 0.5346         
+                                         
+                  Kappa : 0              
+ Mcnemar's Test P-Value : 4.321e-14      
+                                         
+            Sensitivity : 0.00000        
+            Specificity : 1.00000        
+         Pos Pred Value :     NaN        
+         Neg Pred Value : 0.93998        
+             Prevalence : 0.06002        
+         Detection Rate : 0.00000        
+   Detection Prevalence : 0.00000        
+      Balanced Accuracy : 0.50000        
+                                         
+       'Positive' Class : insurance      
+                                         
 > 
 > confusionMatrix(predict(svmFit, testingInd[, noNZVSet]), testingInd$CARAVAN)
 Confusion Matrix and Statistics
 
              Reference
 Prediction    insurance noinsurance
-  insurance          18          80
-  noinsurance        98        1766
+  insurance           0           0
+  noinsurance       116        1846
                                           
-               Accuracy : 0.9093          
-                 95% CI : (0.8957, 0.9216)
+               Accuracy : 0.9409          
+                 95% CI : (0.9295, 0.9509)
     No Information Rate : 0.9409          
-    P-Value [Acc > NIR] : 1.0000          
+    P-Value [Acc > NIR] : 0.5247          
                                           
-                  Kappa : 0.1206          
- Mcnemar's Test P-Value : 0.2026          
+                  Kappa : 0               
+ Mcnemar's Test P-Value : <2e-16          
                                           
-            Sensitivity : 0.155172        
-            Specificity : 0.956663        
-         Pos Pred Value : 0.183673        
-         Neg Pred Value : 0.947425        
-             Prevalence : 0.059123        
-         Detection Rate : 0.009174        
-   Detection Prevalence : 0.049949        
+            Sensitivity : 0.00000         
+            Specificity : 1.00000         
+         Pos Pred Value :     NaN         
+         Neg Pred Value : 0.94088         
+             Prevalence : 0.05912         
+         Detection Rate : 0.00000         
+   Detection Prevalence : 0.00000         
+      Balanced Accuracy : 0.50000         
                                           
        'Positive' Class : insurance       
                                           
 > 
-> svmGrid2 <- data.frame(.sigma = sigma[2],
-+                       .C = 2^seq(-6, 1, length = 15))
+> 
 > set.seed(1401)
 > svmWtFit <- train(CARAVAN ~ .,
 +                   data = trainingInd[, noNZVSet],
 +                   method = "svmRadial",
-+                   tuneGrid = svmGrid2,
++                   tuneGrid = svmGrid1,
 +                   preProc = c("center", "scale"),
 +                   metric = "Kappa",
 +                   class.weights = c(insurance = 18, noinsurance = 1),
 +                   trControl = ctrlNoProb)
 > svmWtFit
+Support Vector Machines with Radial Basis Function Kernel 
+
 6877 samples
  203 predictors
    2 classes: 'insurance', 'noinsurance' 
 
 Pre-processing: centered, scaled 
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 6189, 6190, 6190, 6189, 6189, 6189, ... 
 
 Resampling results across tuning parameters:
 
-  C       Accuracy  Kappa   Sens   Spec   Accuracy SD  Kappa SD  Sens SD
-  0.0156  0.557     0.0682  0.742  0.545  0.0213       0.0141    0.0537 
-  0.0221  0.614     0.0806  0.691  0.609  0.0232       0.0146    0.0547 
-  0.0312  0.637     0.0864  0.669  0.635  0.0221       0.0187    0.0648 
-  0.0442  0.644     0.0883  0.662  0.643  0.0228       0.0222    0.071  
-  0.0625  0.658     0.0939  0.657  0.658  0.0219       0.0201    0.0644 
-  0.0884  0.672     0.0958  0.633  0.674  0.0232       0.0202    0.0478 
-  0.125   0.684     0.101   0.625  0.688  0.0217       0.0202    0.0535 
-  0.177   0.7       0.106   0.611  0.705  0.0186       0.0138    0.041  
-  0.25    0.711     0.108   0.591  0.719  0.0206       0.0164    0.0352 
-  0.354   0.724     0.111   0.572  0.734  0.0193       0.0166    0.0433 
-  0.5     0.737     0.112   0.543  0.75   0.0198       0.0178    0.0427 
-  0.707   0.75      0.109   0.506  0.765  0.0191       0.0274    0.0661 
-  1       0.765     0.104   0.46   0.785  0.0161       0.0259    0.0759 
-  1.41    0.776     0.097   0.416  0.799  0.0162       0.0281    0.0799 
-  2       0.791     0.102   0.394  0.817  0.0186       0.0356    0.0803 
-  Spec SD
-  0.0226 
-  0.0256 
-  0.0241 
-  0.0242 
-  0.0237 
-  0.0241 
-  0.0231 
-  0.0206 
-  0.0221 
-  0.0211 
-  0.0216 
-  0.0201 
-  0.0188 
-  0.0196 
-  0.0206 
+  C     Accuracy  Kappa   Sens   Spec   Accuracy SD  Kappa SD  Sens SD  Spec SD
+  4     0.818     0.105   0.343  0.849  0.016        0.0399    0.0853   0.0186 
+  8     0.842     0.116   0.309  0.876  0.0142       0.0339    0.0605   0.0159 
+  16    0.855     0.105   0.256  0.893  0.0192       0.0442    0.0602   0.0207 
+  32    0.869     0.11    0.234  0.909  0.0159       0.0507    0.0633   0.0167 
+  64    0.876     0.0948  0.195  0.919  0.0173       0.0426    0.0435   0.0179 
+  128   0.879     0.0865  0.175  0.924  0.0155       0.049     0.0503   0.0155 
+  256   0.88      0.0843  0.17   0.925  0.0154       0.0419    0.0386   0.0154 
+  512   0.879     0.0739  0.161  0.925  0.015        0.0501    0.0557   0.0157 
+  1020  0.88      0.073   0.158  0.925  0.0148       0.0511    0.0569   0.0154 
 
-Tuning parameter 'sigma' was held constant at a value of 0.00245
+Tuning parameter 'sigma' was held constant at a value of 0.002454182
 Kappa was used to select the optimal model using  the largest value.
-The final values used for the model were C = 0.5 and sigma = 0.00245. 
+The final values used for the model were sigma = 0.00245 and C = 8. 
 > 
 > svmWtEvalCM <- confusionMatrix(predict(svmWtFit, evaluationInd[, noNZVSet]), evalResults$CARAVAN)
 > svmWtEvalCM
@@ -1242,27 +1192,28 @@ Confusion Matrix and Statistics
 
              Reference
 Prediction    insurance noinsurance
-  insurance          32         232
-  noinsurance        27         692
-                                          
-               Accuracy : 0.7365          
-                 95% CI : (0.7078, 0.7638)
-    No Information Rate : 0.94            
-    P-Value [Acc > NIR] : 1               
-                                          
-                  Kappa : 0.1109          
- Mcnemar's Test P-Value : <2e-16          
-                                          
-            Sensitivity : 0.54237         
-            Specificity : 0.74892         
-         Pos Pred Value : 0.12121         
-         Neg Pred Value : 0.96245         
-             Prevalence : 0.06002         
-         Detection Rate : 0.03255         
-   Detection Prevalence : 0.26857         
-                                          
-       'Positive' Class : insurance       
-                                          
+  insurance          17         123
+  noinsurance        42         801
+                                         
+               Accuracy : 0.8321         
+                 95% CI : (0.8073, 0.855)
+    No Information Rate : 0.94           
+    P-Value [Acc > NIR] : 1              
+                                         
+                  Kappa : 0.0944         
+ Mcnemar's Test P-Value : 4.725e-10      
+                                         
+            Sensitivity : 0.28814        
+            Specificity : 0.86688        
+         Pos Pred Value : 0.12143        
+         Neg Pred Value : 0.95018        
+             Prevalence : 0.06002        
+         Detection Rate : 0.01729        
+   Detection Prevalence : 0.14242        
+      Balanced Accuracy : 0.57751        
+                                         
+       'Positive' Class : insurance      
+                                         
 > 
 > svmWtTestCM <- confusionMatrix(predict(svmWtFit, testingInd[, noNZVSet]), testingInd$CARAVAN)
 > svmWtTestCM
@@ -1270,24 +1221,25 @@ Confusion Matrix and Statistics
 
              Reference
 Prediction    insurance noinsurance
-  insurance          66         442
-  noinsurance        50        1404
+  insurance          40         223
+  noinsurance        76        1623
                                           
-               Accuracy : 0.7492          
-                 95% CI : (0.7294, 0.7683)
+               Accuracy : 0.8476          
+                 95% CI : (0.8309, 0.8632)
     No Information Rate : 0.9409          
     P-Value [Acc > NIR] : 1               
                                           
-                  Kappa : 0.1276          
+                  Kappa : 0.1406          
  Mcnemar's Test P-Value : <2e-16          
                                           
-            Sensitivity : 0.56897         
-            Specificity : 0.76056         
-         Pos Pred Value : 0.12992         
-         Neg Pred Value : 0.96561         
+            Sensitivity : 0.34483         
+            Specificity : 0.87920         
+         Pos Pred Value : 0.15209         
+         Neg Pred Value : 0.95527         
              Prevalence : 0.05912         
-         Detection Rate : 0.03364         
-   Detection Prevalence : 0.25892         
+         Detection Rate : 0.02039         
+   Detection Prevalence : 0.13405         
+      Balanced Accuracy : 0.61201         
                                           
        'Positive' Class : insurance       
                                           
@@ -1295,7 +1247,7 @@ Prediction    insurance noinsurance
 > 
 > initialRpart <- rpart(CARAVAN ~ ., data = training,
 +                       control = rpart.control(cp = 0.0001))
-> rpartGrid <- data.frame(.cp = initialRpart$cptable[, "CP"])
+> rpartGrid <- data.frame(cp = initialRpart$cptable[, "CP"])
 > 
 > cmat <- list(loss = matrix(c(0, 1, 20, 0), ncol = 2))
 > set.seed(1401)
@@ -1307,12 +1259,14 @@ Prediction    insurance noinsurance
 +                   metric = "Kappa",
 +                   parms = cmat)
 > cartWMod
+CART 
+
 6877 samples
   85 predictors
    2 classes: 'insurance', 'noinsurance' 
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 6189, 6190, 6190, 6189, 6189, 6189, ... 
 
@@ -1338,9 +1292,9 @@ The final value used for the model was cp = 0.00162.
 > 
 > 
 > library(C50)
-> c5Grid <- expand.grid(.model = c("tree", "rules"),
-+                       .trials = c(1, (1:10)*10),
-+                       .winnow = FALSE)
+> c5Grid <- expand.grid(model = c("tree", "rules"),
++                       trials = c(1, (1:10)*10),
++                       winnow = FALSE)
 > 
 > finalCost <- matrix(c(0, 20, 1, 0), ncol = 2)
 > rownames(finalCost) <- colnames(finalCost) <- levels(training$CARAVAN)
@@ -1378,6 +1332,7 @@ Prediction    insurance noinsurance
              Prevalence : 0.05912        
          Detection Rate : 0.03262        
    Detection Prevalence : 0.35015        
+      Balanced Accuracy : 0.60712        
                                          
        'Positive' Class : insurance      
                                          
@@ -1387,32 +1342,35 @@ Prediction    insurance noinsurance
 > ### Session Information
 > 
 > sessionInfo()
-R version 3.0.0 RC (2013-03-27 r62426)
+R version 3.0.1 (2013-05-16)
 Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
 locale:
 [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
 
 attached base packages:
-[1] grid      parallel  stats     graphics  grDevices utils     datasets 
-[8] methods   base     
+[1] grid      stats     graphics  grDevices utils     datasets  methods  
+[8] base     
 
 other attached packages:
- [1] C50_0.1.0-14       kernlab_0.9-16     DMwR_0.3.0         abind_1.4-0       
- [5] rpart_4.1-1        ROCR_1.0-4         gplots_2.11.0      MASS_7.3-26       
- [9] KernSmooth_2.23-10 caTools_1.14       gdata_2.12.0       gtools_2.7.0      
-[13] quantmod_0.4-0     TTR_0.21-1         Defaults_1.1-1     xts_0.9-3         
-[17] zoo_1.7-9          earth_3.2-3        plotrix_3.4-6      plotmo_1.3-2      
-[21] leaps_2.9          mda_0.4-2          e1071_1.6-1        class_7.3-7       
-[25] pROC_1.5.4         randomForest_4.6-7 doMC_1.3.0         iterators_1.0.6   
-[29] caret_5.15-61      reshape2_1.2.2     plyr_1.8           foreach_1.4.0     
-[33] cluster_1.14.4     DWD_0.10           Matrix_1.0-12      lattice_0.20-15   
+ [1] C50_0.1.0-14       kernlab_0.9-16     DMwR_0.3.0         cluster_1.14.4    
+ [5] abind_1.4-0        rpart_4.1-1        ROCR_1.0-4         gplots_2.11.0     
+ [9] MASS_7.3-26        KernSmooth_2.23-10 caTools_1.14       gdata_2.12.0      
+[13] gtools_2.7.0       quantmod_0.4-0     TTR_0.21-1         Defaults_1.1-1    
+[17] xts_0.9-3          zoo_1.7-9          mda_0.4-2          earth_3.2-3       
+[21] plotrix_3.4-6      plotmo_1.3-2       leaps_2.9          e1071_1.6-1       
+[25] class_7.3-7        pROC_1.5.4         plyr_1.8           randomForest_4.6-7
+[29] caret_6.0-22       ggplot2_0.9.3.1    DWD_0.10           Matrix_1.0-12     
+[33] lattice_0.20-15   
 
 loaded via a namespace (and not attached):
-[1] bitops_1.0-5    codetools_0.2-8 compiler_3.0.0  stringr_0.6.2  
-[5] tools_3.0.0    
+ [1] bitops_1.0-5       car_2.0-16         codetools_0.2-8    colorspace_1.2-1  
+ [5] compiler_3.0.1     dichromat_2.0-0    digest_0.6.3       foreach_1.4.0     
+ [9] gtable_0.1.2       iterators_1.0.6    labeling_0.1       munsell_0.4       
+[13] proto_0.3-10       RColorBrewer_1.0-5 reshape2_1.2.2     scales_0.2.3      
+[17] stringr_0.6.2      tools_3.0.1       
 > 
 > q("no")
 > proc.time()
       user     system    elapsed 
-358315.343   5239.689  72001.525 
+243437.520    682.066 244138.032 

@@ -1,5 +1,5 @@
 
-R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
+R version 3.0.1 (2013-05-16) -- "Good Sport"
 Copyright (C) 2013 The R Foundation for Statistical Computing
 Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
@@ -51,12 +51,6 @@ Type 'q()' to quit R.
 > ### Load the data
 > 
 > library(AppliedPredictiveModeling)
-Loading required package: CORElearn
-Loading required package: cluster
-Loading required package: rpart
-Loading required package: MASS
-Loading required package: plyr
-Loading required package: reshape2
 > data(solubility)
 > 
 > ### Create a control function that will be used across models. We
@@ -64,8 +58,8 @@ Loading required package: reshape2
 > ### random number seed being set to identical values.
 > 
 > library(caret)
-Loading required package: foreach
 Loading required package: lattice
+Loading required package: ggplot2
 > set.seed(100)
 > indx <- createFolds(solTrainY, returnTrain = TRUE)
 > ctrl <- trainControl(method = "cv", index = indx)
@@ -95,16 +89,17 @@ Loading required package: lattice
 +                   method = "rpart",
 +                   tuneLength = 25,
 +                   trControl = ctrl)
-Warning messages:
-1: executing %dopar% sequentially: no parallel backend registered 
-2: In nominalTrainWorkflow(dat = trainData, info = trainInfo, method = method,  :
+Warning message:
+In nominalTrainWorkflow(x = x, y = y, wts = weights, info = trainInfo,  :
   There were missing values in resampled performance measures.
 > cartTune
+CART 
+
 951 samples
 228 predictors
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
 
@@ -191,25 +186,26 @@ FP036              0.0000
 > 
 > ### Tune the conditional inference tree
 > 
-> cGrid <- data.frame(.mincriterion = sort(c(.95, seq(.75, .99, length = 2))))
+> cGrid <- data.frame(mincriterion = sort(c(.95, seq(.75, .99, length = 2))))
 > 
 > set.seed(100)
 > ctreeTune <- train(x = solTrainXtrans, y = solTrainY,
 +                    method = "ctree",
 +                    tuneGrid = cGrid,
 +                    trControl = ctrl)
+Loading required package: party
 Loading required package: survival
 Loading required package: splines
+
+Attaching package: ‘survival’
+
+The following object is masked from ‘package:caret’:
+
+    cluster
+
 Loading required package: grid
 Loading required package: modeltools
 Loading required package: stats4
-
-Attaching package: ‘modeltools’
-
-The following object is masked from ‘package:plyr’:
-
-    empty
-
 Loading required package: coin
 Loading required package: mvtnorm
 Loading required package: zoo
@@ -223,13 +219,16 @@ The following object is masked from ‘package:base’:
 Loading required package: sandwich
 Loading required package: strucchange
 Loading required package: vcd
+Loading required package: MASS
 Loading required package: colorspace
 > ctreeTune
+Conditional Inference Tree 
+
 951 samples
 228 predictors
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
 
@@ -262,12 +261,15 @@ The final value used for the model was mincriterion = 0.75.
 +                 method = "M5",
 +                 trControl = ctrl,
 +                 control = Weka_control(M = 10))
+Loading required package: RWeka
 > m5Tune
+Model Tree 
+
 951 samples
 228 predictors
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
 
@@ -577,6 +579,7 @@ y =
 > ### parallel processing, such as mutlicore (i.e. doMC).
 > 
 > library(doMC)
+Loading required package: foreach
 Loading required package: iterators
 Loading required package: parallel
 > registerDoMC(5)
@@ -587,56 +590,43 @@ Loading required package: parallel
 +                      method = "treebag",
 +                      nbagg = 50,
 +                      trControl = ctrl)
-Loading required package: nnet
-Loading required package: nnet
-Loading required package: nnet
-Loading required package: nnet
-Loading required package: nnet
-Loading required package: class
-Loading required package: class
-Loading required package: class
-Loading required package: class
-Loading required package: class
-Loading required package: prodlim
-Loading required package: prodlim
-Loading required package: prodlim
-                                  Loading required package: prodlim
-KernSmooth 2.23 loaded
-Copyright M. P. Wand 1997-2009
-KernSmooth 2.23 loaded
-Copyright M. P. Wand 1997-2009
-KernSmooth 2.23 loaded
-Copyright M. P. Wand 1997-2009
-KernSmooth 2.23 loaded
-Copyright M. P. Wand 1997-2009
-KernSmooth 2.23 loaded
-Copyright M. P. Wand 1997-2009
+Loading required package: ipred
 Loading required package: nnet
 Loading required package: class
 Loading required package: prodlim
 KernSmooth 2.23 loaded
 Copyright M. P. Wand 1997-2009
+Loading required package: plyr
+
+Attaching package: ‘plyr’
+
+The following object is masked from ‘package:modeltools’:
+
+    empty
+
 > 
 > treebagTune
+Bagged CART 
+
 951 samples
 228 predictors
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
 
 Resampling results
 
   RMSE   Rsquared  RMSE SD  Rsquared SD
-  0.906  0.807     0.0631   0.0408     
+  0.907  0.805     0.0664   0.0419     
 
  
 > 
 > ################################################################################
 > ### Section 8.5 Random Forests
 > 
-> mtryGrid <- data.frame(.mtry = floor(seq(10, ncol(solTrainXtrans), length = 10)))
+> mtryGrid <- data.frame(mtry = floor(seq(10, ncol(solTrainXtrans), length = 10)))
 > 
 > 
 > ### Tune the model using cross-validation
@@ -647,41 +637,36 @@ Resampling results
 +                 ntree = 1000,
 +                 importance = TRUE,
 +                 trControl = ctrl)
-randomForest 4.6-7
-                   randomForest 4.6-7
-randomForest 4.6-7
-Type rfNews() to see new features/changes/bug fixes.
-Type rfNews() to see new features/changes/bug fixes.
-                                                     Type rfNews() to see new features/changes/bug fixes.
-randomForest 4.6-7
-Type rfNews() to see new features/changes/bug fixes.
+Loading required package: randomForest
 randomForest 4.6-7
 Type rfNews() to see new features/changes/bug fixes.
 > rfTune
+Random Forest 
+
 951 samples
 228 predictors
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
 
 Resampling results across tuning parameters:
 
   mtry  RMSE   Rsquared  RMSE SD  Rsquared SD
-  10    0.708  0.888     0.0662   0.0206     
-  34    0.657  0.898     0.064    0.0225     
-  58    0.653  0.898     0.0636   0.0237     
-  82    0.649  0.899     0.0662   0.0247     
-  106   0.648  0.899     0.0668   0.0259     
-  131   0.649  0.899     0.0677   0.0265     
-  155   0.65   0.898     0.07     0.0272     
-  179   0.652  0.898     0.0681   0.0269     
-  203   0.654  0.897     0.0714   0.028      
-  228   0.652  0.897     0.0691   0.0271     
+  10    0.705  0.889     0.0665   0.0208     
+  34    0.656  0.899     0.063    0.0225     
+  58    0.652  0.899     0.0631   0.0237     
+  82    0.649  0.899     0.0654   0.0249     
+  106   0.651  0.898     0.0693   0.0261     
+  131   0.649  0.899     0.0683   0.0265     
+  155   0.65   0.898     0.0698   0.0269     
+  179   0.65   0.898     0.0701   0.0274     
+  203   0.653  0.897     0.069    0.0271     
+  228   0.653  0.897     0.0709   0.0277     
 
 RMSE was used to select the optimal model using  the smallest value.
-The final value used for the model was mtry = 106. 
+The final value used for the model was mtry = 131. 
 > 
 > plot(rfTune)
 > 
@@ -692,26 +677,26 @@ rf variable importance
   only 20 most important variables shown (out of 228)
 
                   Overall
-MolWeight           41.15
-SurfaceArea1        38.38
-SurfaceArea2        36.01
-NumCarbon           34.19
-HydrophilicFactor   32.33
-NumRotBonds         22.42
-NumAtoms            21.85
-NumHydrogen         19.47
-NumNonHBonds        19.46
-NumNonHAtoms        19.09
-NumBonds            17.08
-NumHalogen          16.92
-FP116               16.47
-FP075               15.23
-NumOxygen           15.11
-NumMultBonds        13.65
-NumChlorine         13.00
-FP065               12.28
-FP009               12.13
-FP092               11.94
+MolWeight           44.11
+NumCarbon           39.69
+SurfaceArea1        37.71
+SurfaceArea2        37.48
+HydrophilicFactor   32.30
+NumHydrogen         30.22
+NumRotBonds         23.48
+NumAtoms            23.23
+NumNonHAtoms        19.94
+FP116               19.91
+NumMultBonds        17.74
+NumBonds            17.68
+NumNonHBonds        17.31
+FP075               15.87
+NumHalogen          14.34
+NumOxygen           14.32
+NumNitrogen         13.32
+FP148               12.67
+FP059               12.11
+FP092               11.85
 > 
 > ### Tune the model using the OOB estimates
 > ctrlOOB <- trainControl(method = "oob")
@@ -723,30 +708,32 @@ FP092               11.94
 +                    importance = TRUE,
 +                    trControl = ctrlOOB)
 > rfTuneOOB
+Random Forest 
+
 951 samples
 228 predictors
 
 No pre-processing
-Resampling: 
+Resampling: Out of Bag Resampling 
 
 Summary of sample sizes:  
 
 Resampling results across tuning parameters:
 
   mtry  RMSE   Rsquared
-  10    0.703  0.882   
-  34    0.656  0.897   
-  58    0.653  0.898   
-  82    0.647  0.9     
-  106   0.649  0.899   
-  131   0.652  0.899   
-  155   0.648  0.9     
+  10    0.704  0.882   
+  34    0.655  0.897   
+  58    0.649  0.899   
+  82    0.649  0.899   
+  106   0.647  0.9     
+  131   0.646  0.9     
+  155   0.65   0.899   
   179   0.65   0.899   
-  203   0.653  0.898   
-  228   0.653  0.898   
+  203   0.654  0.898   
+  228   0.651  0.899   
 
 RMSE was used to select the optimal model using  the smallest value.
-The final value used for the model was mtry = 82. 
+The final value used for the model was mtry = 131. 
 > 
 > plot(rfTuneOOB)
 > 
@@ -758,30 +745,32 @@ The final value used for the model was mtry = 82.
 +                     controls = cforest_unbiased(ntree = 1000),
 +                     trControl = ctrl)
 > condrfTune
+Conditional Inference Random Forest 
+
 951 samples
 228 predictors
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
 
 Resampling results across tuning parameters:
 
   mtry  RMSE   Rsquared  RMSE SD  Rsquared SD
-  10    0.975  0.813     0.0871   0.0294     
-  34    0.848  0.842     0.0656   0.0226     
-  58    0.822  0.848     0.0551   0.0217     
-  82    0.818  0.848     0.0526   0.0253     
-  106   0.817  0.847     0.0491   0.0266     
-  131   0.819  0.845     0.0482   0.03       
-  155   0.823  0.843     0.0455   0.0306     
-  179   0.83   0.839     0.0471   0.0334     
-  203   0.834  0.837     0.0477   0.0345     
-  228   0.841  0.833     0.0472   0.0368     
+  10    0.976  0.813     0.0852   0.0293     
+  34    0.844  0.844     0.0644   0.022      
+  58    0.823  0.848     0.0561   0.0229     
+  82    0.816  0.849     0.0507   0.0245     
+  106   0.817  0.847     0.0471   0.027      
+  131   0.817  0.846     0.0477   0.0297     
+  155   0.821  0.843     0.047    0.031      
+  179   0.829  0.84      0.0446   0.0332     
+  203   0.835  0.836     0.0496   0.0363     
+  228   0.84   0.834     0.0473   0.0366     
 
 RMSE was used to select the optimal model using  the smallest value.
-The final value used for the model was mtry = 106. 
+The final value used for the model was mtry = 82. 
 > 
 > plot(condrfTune)
 > 
@@ -792,27 +781,29 @@ The final value used for the model was mtry = 106.
 +                        controls = cforest_unbiased(ntree = 1000),
 +                        trControl = trainControl(method = "oob"))
 > condrfTuneOOB
+Conditional Inference Random Forest 
+
 951 samples
 228 predictors
 
 No pre-processing
-Resampling: 
+Resampling: Out of Bag Resampling 
 
 Summary of sample sizes:  
 
 Resampling results across tuning parameters:
 
   mtry  RMSE   Rsquared
-  10    0.884  0.853   
-  34    0.735  0.886   
-  58    0.706  0.892   
-  82    0.698  0.893   
-  106   0.695  0.893   
+  10    0.888  0.85    
+  34    0.736  0.886   
+  58    0.71   0.891   
+  82    0.7    0.893   
+  106   0.694  0.894   
   131   0.696  0.893   
-  155   0.698  0.892   
-  179   0.701  0.89    
-  203   0.712  0.885   
-  228   0.714  0.884   
+  155   0.703  0.89    
+  179   0.703  0.889   
+  203   0.711  0.886   
+  228   0.707  0.886   
 
 RMSE was used to select the optimal model using  the smallest value.
 The final value used for the model was mtry = 106. 
@@ -822,188 +813,187 @@ The final value used for the model was mtry = 106.
 > ################################################################################
 > ### Section 8.6 Boosting
 > 
-> gbmGrid <- expand.grid(.interaction.depth = seq(1, 7, by = 2),
-+                        .n.trees = seq(100, 1000, by = 50),
-+                        .shrinkage = c(0.01, 0.1))
+> gbmGrid <- expand.grid(interaction.depth = seq(1, 7, by = 2),
++                        n.trees = seq(100, 1000, by = 50),
++                        shrinkage = c(0.01, 0.1))
 > set.seed(100)
 > gbmTune <- train(x = solTrainXtrans, y = solTrainY,
 +                  method = "gbm",
 +                  tuneGrid = gbmGrid,
 +                  trControl = ctrl,
 +                  verbose = FALSE)
-Loaded gbm 2.1
-Loaded gbm 2.1
-               Loaded gbm 2.1
-Loaded gbm 2.1
+Loading required package: gbm
 Loaded gbm 2.1
 > gbmTune
+Stochastic Gradient Boosting 
+
 951 samples
 228 predictors
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
 
 Resampling results across tuning parameters:
 
-  interaction.depth  n.trees  shrinkage  RMSE   Rsquared  RMSE SD  Rsquared SD
-  1                  100      0.01       1.58   0.638     0.121    0.0734     
-  1                  100      0.1        0.856  0.832     0.0592   0.0332     
-  1                  150      0.01       1.44   0.69      0.111    0.0655     
-  1                  150      0.1        0.789  0.853     0.0564   0.0305     
-  1                  200      0.01       1.33   0.718     0.105    0.0558     
-  1                  200      0.1        0.753  0.864     0.0558   0.0293     
-  1                  250      0.01       1.25   0.736     0.101    0.0531     
-  1                  250      0.1        0.73   0.872     0.0555   0.0276     
-  1                  300      0.01       1.18   0.749     0.0959   0.0515     
-  1                  300      0.1        0.718  0.876     0.0565   0.0276     
-  1                  350      0.01       1.13   0.759     0.0905   0.0484     
-  1                  350      0.1        0.704  0.881     0.0548   0.0267     
-  1                  400      0.01       1.08   0.77      0.0849   0.0446     
-  1                  400      0.1        0.694  0.884     0.0577   0.0269     
-  1                  450      0.01       1.05   0.778     0.0802   0.0423     
-  1                  450      0.1        0.687  0.887     0.0567   0.0256     
-  1                  500      0.01       1.02   0.786     0.0764   0.0407     
-  1                  500      0.1        0.683  0.888     0.0589   0.0261     
-  1                  550      0.01       0.994  0.793     0.0733   0.0385     
-  1                  550      0.1        0.68   0.889     0.0595   0.0268     
-  1                  600      0.01       0.971  0.8       0.0708   0.0375     
-  1                  600      0.1        0.674  0.891     0.0567   0.025      
-  1                  650      0.01       0.951  0.807     0.0683   0.0362     
-  1                  650      0.1        0.673  0.891     0.0577   0.0252     
-  1                  700      0.01       0.933  0.812     0.0663   0.0352     
-  1                  700      0.1        0.669  0.892     0.0559   0.0249     
-  1                  750      0.01       0.917  0.817     0.0647   0.0344     
-  1                  750      0.1        0.67   0.892     0.0561   0.0246     
-  1                  800      0.01       0.902  0.821     0.0637   0.0342     
-  1                  800      0.1        0.669  0.892     0.0528   0.0241     
-  1                  850      0.01       0.888  0.825     0.0628   0.0338     
-  1                  850      0.1        0.667  0.893     0.0539   0.0249     
-  1                  900      0.01       0.876  0.829     0.0626   0.0334     
-  1                  900      0.1        0.666  0.893     0.0524   0.0242     
-  1                  950      0.01       0.865  0.832     0.0613   0.0331     
-  1                  950      0.1        0.665  0.894     0.0548   0.0243     
-  1                  1000     0.01       0.855  0.835     0.0613   0.0328     
-  1                  1000     0.1        0.66   0.895     0.0542   0.0242     
-  3                  100      0.01       1.32   0.75      0.0871   0.0479     
-  3                  100      0.1        0.682  0.887     0.054    0.0253     
-  3                  150      0.01       1.15   0.776     0.0758   0.042      
-  3                  150      0.1        0.649  0.898     0.048    0.0234     
-  3                  200      0.01       1.04   0.799     0.0677   0.0362     
-  3                  200      0.1        0.633  0.903     0.0451   0.0216     
-  3                  250      0.01       0.957  0.816     0.0608   0.034      
-  3                  250      0.1        0.623  0.906     0.043    0.02       
-  3                  300      0.01       0.899  0.83      0.0548   0.032      
-  3                  300      0.1        0.62   0.907     0.043    0.0194     
-  3                  350      0.01       0.857  0.84      0.0508   0.0301     
-  3                  350      0.1        0.613  0.909     0.0432   0.0182     
-  3                  400      0.01       0.821  0.85      0.0488   0.029      
-  3                  400      0.1        0.608  0.911     0.0419   0.0174     
-  3                  450      0.01       0.795  0.857     0.0494   0.0284     
-  3                  450      0.1        0.606  0.911     0.0429   0.0171     
-  3                  500      0.01       0.774  0.862     0.0493   0.0272     
-  3                  500      0.1        0.601  0.913     0.0415   0.0164     
-  3                  550      0.01       0.757  0.867     0.0487   0.0265     
-  3                  550      0.1        0.601  0.913     0.0453   0.0164     
-  3                  600      0.01       0.743  0.871     0.0486   0.0263     
-  3                  600      0.1        0.601  0.913     0.0423   0.0153     
-  3                  650      0.01       0.73   0.874     0.0486   0.026      
-  3                  650      0.1        0.602  0.913     0.0431   0.0157     
-  3                  700      0.01       0.72   0.877     0.0487   0.0256     
-  3                  700      0.1        0.601  0.913     0.0424   0.0153     
-  3                  750      0.01       0.711  0.88      0.0495   0.0257     
-  3                  750      0.1        0.602  0.913     0.0463   0.0163     
-  3                  800      0.01       0.703  0.882     0.0497   0.0255     
-  3                  800      0.1        0.602  0.913     0.0455   0.0157     
-  3                  850      0.01       0.695  0.884     0.0501   0.0252     
-  3                  850      0.1        0.601  0.913     0.0478   0.016      
-  3                  900      0.01       0.688  0.886     0.0507   0.0252     
-  3                  900      0.1        0.601  0.913     0.0474   0.0159     
-  3                  950      0.01       0.682  0.888     0.0511   0.0252     
-  3                  950      0.1        0.602  0.913     0.0484   0.0163     
-  3                  1000     0.01       0.678  0.889     0.0514   0.0251     
-  3                  1000     0.1        0.602  0.913     0.0496   0.0166     
-  5                  100      0.01       1.23   0.792     0.0775   0.0418     
-  5                  100      0.1        0.643  0.9       0.0553   0.0221     
-  5                  150      0.01       1.05   0.814     0.066    0.0354     
-  5                  150      0.1        0.621  0.907     0.0576   0.0215     
-  5                  200      0.01       0.939  0.833     0.0579   0.0308     
-  5                  200      0.1        0.615  0.908     0.0626   0.0216     
-  5                  250      0.01       0.862  0.847     0.052    0.029      
-  5                  250      0.1        0.608  0.91      0.0625   0.0213     
-  5                  300      0.01       0.809  0.859     0.0498   0.0272     
-  5                  300      0.1        0.604  0.912     0.0596   0.0201     
-  5                  350      0.01       0.771  0.867     0.0513   0.0268     
-  5                  350      0.1        0.602  0.912     0.06     0.0195     
-  5                  400      0.01       0.741  0.874     0.0515   0.0256     
-  5                  400      0.1        0.601  0.913     0.0605   0.0193     
-  5                  450      0.01       0.72   0.88      0.0516   0.0249     
-  5                  450      0.1        0.604  0.912     0.0616   0.0195     
-  5                  500      0.01       0.703  0.884     0.052    0.0247     
-  5                  500      0.1        0.604  0.912     0.0632   0.0199     
-  5                  550      0.01       0.689  0.887     0.0531   0.0246     
-  5                  550      0.1        0.606  0.911     0.0643   0.0203     
-  5                  600      0.01       0.678  0.89      0.053    0.024      
-  5                  600      0.1        0.606  0.911     0.0632   0.0199     
-  5                  650      0.01       0.669  0.893     0.0533   0.0238     
-  5                  650      0.1        0.605  0.912     0.0643   0.0196     
-  5                  700      0.01       0.662  0.895     0.0532   0.0235     
-  5                  700      0.1        0.605  0.912     0.0642   0.0197     
-  5                  750      0.01       0.655  0.897     0.0541   0.0236     
-  5                  750      0.1        0.605  0.911     0.0647   0.0199     
-  5                  800      0.01       0.649  0.898     0.0539   0.0234     
-  5                  800      0.1        0.606  0.911     0.0627   0.0194     
-  5                  850      0.01       0.643  0.9       0.0545   0.0233     
-  5                  850      0.1        0.606  0.911     0.0641   0.0197     
-  5                  900      0.01       0.639  0.901     0.0554   0.0234     
-  5                  900      0.1        0.607  0.911     0.0663   0.0204     
-  5                  950      0.01       0.635  0.902     0.0556   0.0233     
-  5                  950      0.1        0.609  0.91      0.066    0.0205     
-  5                  1000     0.01       0.632  0.903     0.0554   0.023      
-  5                  1000     0.1        0.609  0.91      0.0664   0.0205     
-  7                  100      0.01       1.18   0.819     0.0717   0.0358     
-  7                  100      0.1        0.628  0.904     0.0608   0.0252     
-  7                  150      0.01       0.995  0.837     0.0573   0.0311     
-  7                  150      0.1        0.616  0.907     0.0584   0.0239     
-  7                  200      0.01       0.882  0.852     0.0507   0.0268     
-  7                  200      0.1        0.613  0.908     0.0606   0.0231     
-  7                  250      0.01       0.808  0.865     0.0487   0.0251     
-  7                  250      0.1        0.608  0.91      0.0606   0.0231     
-  7                  300      0.01       0.757  0.875     0.0494   0.0243     
-  7                  300      0.1        0.605  0.911     0.0631   0.0235     
-  7                  350      0.01       0.721  0.882     0.05     0.0239     
-  7                  350      0.1        0.604  0.911     0.0652   0.0238     
-  7                  400      0.01       0.696  0.888     0.0512   0.0236     
-  7                  400      0.1        0.604  0.911     0.0641   0.0233     
-  7                  450      0.01       0.677  0.892     0.0529   0.0237     
-  7                  450      0.1        0.605  0.91      0.0683   0.0244     
-  7                  500      0.01       0.662  0.896     0.0536   0.0233     
-  7                  500      0.1        0.605  0.91      0.0701   0.0253     
-  7                  550      0.01       0.652  0.899     0.0538   0.0227     
-  7                  550      0.1        0.604  0.911     0.0682   0.0249     
-  7                  600      0.01       0.642  0.901     0.0532   0.0224     
-  7                  600      0.1        0.606  0.91      0.0669   0.0244     
-  7                  650      0.01       0.635  0.903     0.0538   0.0223     
-  7                  650      0.1        0.606  0.91      0.0661   0.0245     
-  7                  700      0.01       0.629  0.905     0.0541   0.0221     
-  7                  700      0.1        0.606  0.91      0.0664   0.0245     
-  7                  750      0.01       0.624  0.906     0.0544   0.0221     
-  7                  750      0.1        0.607  0.91      0.0636   0.0238     
-  7                  800      0.01       0.619  0.907     0.0548   0.0221     
-  7                  800      0.1        0.606  0.91      0.0626   0.0234     
-  7                  850      0.01       0.615  0.908     0.0541   0.0217     
-  7                  850      0.1        0.607  0.91      0.0635   0.024      
-  7                  900      0.01       0.612  0.909     0.0545   0.0217     
-  7                  900      0.1        0.608  0.91      0.0632   0.0237     
-  7                  950      0.01       0.61   0.91      0.0548   0.0216     
-  7                  950      0.1        0.608  0.91      0.063    0.0239     
-  7                  1000     0.01       0.607  0.911     0.0547   0.0214     
-  7                  1000     0.1        0.609  0.909     0.0627   0.0238     
+  shrinkage  interaction.depth  n.trees  RMSE   Rsquared  RMSE SD  Rsquared SD
+  0.01       1                  100      1.58   0.639     0.12     0.0707     
+  0.01       1                  150      1.44   0.688     0.112    0.0632     
+  0.01       1                  200      1.33   0.714     0.106    0.0585     
+  0.01       1                  250      1.25   0.734     0.101    0.0541     
+  0.01       1                  300      1.18   0.747     0.0963   0.0509     
+  0.01       1                  350      1.13   0.76      0.0898   0.0472     
+  0.01       1                  400      1.08   0.769     0.0849   0.045      
+  0.01       1                  450      1.05   0.778     0.0812   0.0432     
+  0.01       1                  500      1.02   0.785     0.078    0.0419     
+  0.01       1                  550      0.993  0.793     0.0739   0.0394     
+  0.01       1                  600      0.972  0.8       0.0719   0.0381     
+  0.01       1                  650      0.951  0.806     0.069    0.0368     
+  0.01       1                  700      0.933  0.811     0.0671   0.036      
+  0.01       1                  750      0.917  0.816     0.0653   0.035      
+  0.01       1                  800      0.903  0.82      0.0647   0.0338     
+  0.01       1                  850      0.888  0.825     0.0641   0.0332     
+  0.01       1                  900      0.876  0.829     0.0638   0.033      
+  0.01       1                  950      0.865  0.832     0.0626   0.0325     
+  0.01       1                  1000     0.854  0.835     0.0609   0.0318     
+  0.01       3                  100      1.32   0.751     0.0861   0.0489     
+  0.01       3                  150      1.15   0.778     0.0752   0.0437     
+  0.01       3                  200      1.04   0.8       0.0642   0.0387     
+  0.01       3                  250      0.956  0.817     0.0568   0.0354     
+  0.01       3                  300      0.899  0.83      0.0531   0.0327     
+  0.01       3                  350      0.855  0.841     0.0521   0.0316     
+  0.01       3                  400      0.822  0.849     0.0515   0.0303     
+  0.01       3                  450      0.797  0.856     0.0512   0.0297     
+  0.01       3                  500      0.775  0.862     0.0524   0.0293     
+  0.01       3                  550      0.758  0.866     0.0527   0.0291     
+  0.01       3                  600      0.743  0.87      0.0535   0.0289     
+  0.01       3                  650      0.731  0.874     0.0533   0.0284     
+  0.01       3                  700      0.719  0.877     0.0527   0.0276     
+  0.01       3                  750      0.709  0.88      0.0533   0.0276     
+  0.01       3                  800      0.702  0.882     0.0535   0.0271     
+  0.01       3                  850      0.695  0.884     0.0535   0.0268     
+  0.01       3                  900      0.689  0.886     0.0535   0.0265     
+  0.01       3                  950      0.683  0.887     0.0534   0.0262     
+  0.01       3                  1000     0.678  0.889     0.0534   0.026      
+  0.01       5                  100      1.23   0.792     0.0771   0.043      
+  0.01       5                  150      1.05   0.813     0.0635   0.0361     
+  0.01       5                  200      0.94   0.833     0.0548   0.0317     
+  0.01       5                  250      0.863  0.847     0.0518   0.0294     
+  0.01       5                  300      0.809  0.859     0.0484   0.0274     
+  0.01       5                  350      0.771  0.867     0.0489   0.0265     
+  0.01       5                  400      0.741  0.874     0.0492   0.0258     
+  0.01       5                  450      0.719  0.88      0.0492   0.0252     
+  0.01       5                  500      0.702  0.884     0.0502   0.0247     
+  0.01       5                  550      0.687  0.888     0.0514   0.0245     
+  0.01       5                  600      0.676  0.891     0.0523   0.0243     
+  0.01       5                  650      0.667  0.893     0.0523   0.0241     
+  0.01       5                  700      0.659  0.896     0.0528   0.0241     
+  0.01       5                  750      0.652  0.898     0.0538   0.0238     
+  0.01       5                  800      0.646  0.899     0.0543   0.0239     
+  0.01       5                  850      0.642  0.9       0.0549   0.0238     
+  0.01       5                  900      0.638  0.902     0.0553   0.0237     
+  0.01       5                  950      0.634  0.903     0.0554   0.0234     
+  0.01       5                  1000     0.63   0.904     0.0553   0.0231     
+  0.01       7                  100      1.18   0.816     0.0712   0.0355     
+  0.01       7                  150      0.999  0.834     0.0554   0.0324     
+  0.01       7                  200      0.885  0.85      0.0469   0.0293     
+  0.01       7                  250      0.81   0.864     0.0452   0.0272     
+  0.01       7                  300      0.759  0.874     0.0465   0.0259     
+  0.01       7                  350      0.724  0.881     0.0476   0.0248     
+  0.01       7                  400      0.699  0.887     0.049    0.0241     
+  0.01       7                  450      0.681  0.891     0.0515   0.0241     
+  0.01       7                  500      0.667  0.894     0.0522   0.024      
+  0.01       7                  550      0.656  0.897     0.0525   0.0236     
+  0.01       7                  600      0.647  0.9       0.0536   0.0234     
+  0.01       7                  650      0.64   0.901     0.0535   0.0231     
+  0.01       7                  700      0.634  0.903     0.0537   0.0227     
+  0.01       7                  750      0.63   0.904     0.0545   0.0226     
+  0.01       7                  800      0.625  0.906     0.0552   0.0226     
+  0.01       7                  850      0.621  0.907     0.0546   0.0223     
+  0.01       7                  900      0.618  0.908     0.0551   0.0221     
+  0.01       7                  950      0.616  0.908     0.0554   0.0222     
+  0.01       7                  1000     0.613  0.909     0.0553   0.022      
+  0.1        1                  100      0.854  0.832     0.0624   0.0328     
+  0.1        1                  150      0.788  0.853     0.0629   0.0296     
+  0.1        1                  200      0.755  0.863     0.0582   0.0277     
+  0.1        1                  250      0.735  0.87      0.0603   0.0268     
+  0.1        1                  300      0.717  0.876     0.0617   0.0275     
+  0.1        1                  350      0.707  0.879     0.058    0.0266     
+  0.1        1                  400      0.701  0.881     0.0623   0.0281     
+  0.1        1                  450      0.694  0.884     0.062    0.028      
+  0.1        1                  500      0.687  0.886     0.0623   0.0286     
+  0.1        1                  550      0.684  0.887     0.0647   0.0292     
+  0.1        1                  600      0.68   0.888     0.0654   0.0288     
+  0.1        1                  650      0.677  0.889     0.0642   0.0279     
+  0.1        1                  700      0.674  0.89      0.062    0.0269     
+  0.1        1                  750      0.671  0.891     0.0646   0.0275     
+  0.1        1                  800      0.668  0.892     0.0636   0.0268     
+  0.1        1                  850      0.668  0.892     0.0627   0.0262     
+  0.1        1                  900      0.665  0.893     0.0643   0.0271     
+  0.1        1                  950      0.666  0.893     0.0646   0.0269     
+  0.1        1                  1000     0.666  0.893     0.062    0.0256     
+  0.1        3                  100      0.685  0.886     0.0589   0.0298     
+  0.1        3                  150      0.657  0.895     0.0587   0.0274     
+  0.1        3                  200      0.646  0.899     0.0586   0.0262     
+  0.1        3                  250      0.628  0.904     0.0565   0.0248     
+  0.1        3                  300      0.623  0.906     0.0528   0.023      
+  0.1        3                  350      0.62   0.907     0.0495   0.0215     
+  0.1        3                  400      0.617  0.908     0.046    0.02       
+  0.1        3                  450      0.617  0.908     0.0481   0.0205     
+  0.1        3                  500      0.616  0.908     0.0468   0.0199     
+  0.1        3                  550      0.614  0.909     0.0467   0.0201     
+  0.1        3                  600      0.613  0.909     0.0465   0.0197     
+  0.1        3                  650      0.614  0.908     0.0467   0.0203     
+  0.1        3                  700      0.615  0.908     0.0473   0.0205     
+  0.1        3                  750      0.617  0.908     0.0468   0.0203     
+  0.1        3                  800      0.618  0.907     0.0448   0.0199     
+  0.1        3                  850      0.617  0.908     0.0451   0.0198     
+  0.1        3                  900      0.617  0.907     0.0455   0.0202     
+  0.1        3                  950      0.617  0.908     0.0464   0.0198     
+  0.1        3                  1000     0.618  0.907     0.0446   0.0192     
+  0.1        5                  100      0.645  0.899     0.0497   0.0234     
+  0.1        5                  150      0.626  0.905     0.0495   0.0208     
+  0.1        5                  200      0.614  0.908     0.0476   0.0202     
+  0.1        5                  250      0.61   0.91      0.0461   0.0196     
+  0.1        5                  300      0.607  0.911     0.0474   0.0195     
+  0.1        5                  350      0.602  0.912     0.0491   0.0187     
+  0.1        5                  400      0.601  0.912     0.0479   0.0184     
+  0.1        5                  450      0.603  0.912     0.0495   0.0184     
+  0.1        5                  500      0.602  0.912     0.0475   0.0183     
+  0.1        5                  550      0.602  0.912     0.0493   0.0188     
+  0.1        5                  600      0.604  0.912     0.0505   0.0188     
+  0.1        5                  650      0.602  0.912     0.0511   0.0194     
+  0.1        5                  700      0.602  0.912     0.0509   0.0193     
+  0.1        5                  750      0.602  0.912     0.0527   0.0196     
+  0.1        5                  800      0.603  0.911     0.0548   0.0201     
+  0.1        5                  850      0.605  0.911     0.0536   0.0202     
+  0.1        5                  900      0.604  0.911     0.054    0.0198     
+  0.1        5                  950      0.604  0.911     0.0547   0.0203     
+  0.1        5                  1000     0.605  0.911     0.0537   0.0201     
+  0.1        7                  100      0.632  0.903     0.0634   0.0242     
+  0.1        7                  150      0.619  0.907     0.0689   0.0242     
+  0.1        7                  200      0.611  0.909     0.0696   0.0241     
+  0.1        7                  250      0.606  0.91      0.0716   0.0242     
+  0.1        7                  300      0.604  0.911     0.0713   0.0237     
+  0.1        7                  350      0.603  0.911     0.074    0.0238     
+  0.1        7                  400      0.603  0.911     0.0757   0.0241     
+  0.1        7                  450      0.603  0.911     0.0779   0.0248     
+  0.1        7                  500      0.603  0.911     0.0758   0.0242     
+  0.1        7                  550      0.604  0.911     0.0758   0.024      
+  0.1        7                  600      0.604  0.911     0.0776   0.0244     
+  0.1        7                  650      0.603  0.911     0.0765   0.0241     
+  0.1        7                  700      0.605  0.911     0.0763   0.0241     
+  0.1        7                  750      0.604  0.911     0.0773   0.0245     
+  0.1        7                  800      0.604  0.911     0.0777   0.0246     
+  0.1        7                  850      0.605  0.911     0.0771   0.0244     
+  0.1        7                  900      0.604  0.911     0.0775   0.0244     
+  0.1        7                  950      0.604  0.911     0.0786   0.0247     
+  0.1        7                  1000     0.605  0.911     0.078    0.0247     
 
 RMSE was used to select the optimal model using  the smallest value.
-The final values used for the model were interaction.depth = 3, n.trees =
- 550 and shrinkage = 0.1. 
+The final values used for the model were n.trees = 400, interaction.depth =
+ 5 and shrinkage = 0.1. 
 > 
 > plot(gbmTune, auto.key = list(columns = 4, lines = TRUE))
 > 
@@ -1014,44 +1004,48 @@ gbm variable importance
   only 20 most important variables shown (out of 228)
 
                   Overall
-NumCarbon         2553.22
-MolWeight         2376.72
-SurfaceArea1      1206.53
-SurfaceArea2      1005.75
-HydrophilicFactor  882.74
-NumNonHAtoms       664.36
-NumAromaticBonds   446.77
-NumChlorine        241.26
-NumHalogen         147.43
-FP009              141.52
-NumHydrogen        136.50
-NumMultBonds       131.86
-NumNonHBonds       130.57
-NumOxygen          113.26
-FP135               84.00
-FP059               75.19
-NumRotBonds         74.36
-FP092               71.27
-NumAtoms            60.15
-FP084               52.50
+MolWeight         2523.24
+NumCarbon         2289.94
+SurfaceArea1      1349.29
+HydrophilicFactor  854.84
+NumNonHAtoms       741.03
+SurfaceArea2       684.76
+NumAromaticBonds   496.97
+NumChlorine        309.43
+NumMultBonds       165.03
+NumHydrogen        144.31
+FP015              118.38
+NumOxygen          113.80
+FP009              108.07
+NumNonHBonds        99.28
+NumHalogen          90.16
+FP135               87.61
+NumRotBonds         86.62
+FP059               81.44
+NumAtoms            75.73
+FP148               69.44
 > 
 > ################################################################################
 > ### Section 8.7 Cubist
 > 
-> cbGrid <- expand.grid(.committees = c(1:10, 20, 50, 75, 100), 
-+                       .neighbors = c(0, 1, 5, 9))
+> cbGrid <- expand.grid(committees = c(1:10, 20, 50, 75, 100), 
++                       neighbors = c(0, 1, 5, 9))
 > 
 > set.seed(100)
 > cubistTune <- train(solTrainXtrans, solTrainY,
 +                     "cubist",
 +                     tuneGrid = cbGrid,
 +                     trControl = ctrl)
+Loading required package: Cubist
+Loading required package: reshape2
 > cubistTune
+Cubist 
+
 951 samples
 228 predictors
 
 No pre-processing
-Resampling: Cross-Validation (10 fold) 
+Resampling: Cross-Validated (10 fold) 
 
 Summary of sample sizes: 856, 857, 855, 856, 856, 855, ... 
 
@@ -1152,7 +1146,7 @@ FP065                25.0
 > ### Session Information
 > 
 > sessionInfo()
-R version 3.0.0 RC (2013-03-27 r62426)
+R version 3.0.1 (2013-05-16)
 Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
 locale:
@@ -1163,27 +1157,30 @@ attached base packages:
  [8] utils     datasets  methods   base     
 
 other attached packages:
- [1] Cubist_0.0.13                    gbm_2.1                         
- [3] randomForest_4.6-7               ipred_0.9-1                     
- [5] prodlim_1.3.3                    class_7.3-7                     
- [7] nnet_7.3-6                       doMC_1.3.0                      
- [9] iterators_1.0.6                  RWeka_0.4-15                    
-[11] party_1.0-6                      vcd_1.2-13                      
-[13] colorspace_1.2-1                 strucchange_1.4-7               
-[15] sandwich_2.2-9                   zoo_1.7-9                       
-[17] coin_1.0-21                      mvtnorm_0.9-9994                
-[19] modeltools_0.2-19                survival_2.37-4                 
-[21] caret_5.16-04                    lattice_0.20-15                 
-[23] foreach_1.4.0                    AppliedPredictiveModeling_1.01-1
-[25] reshape2_1.2.2                   plyr_1.8                        
-[27] MASS_7.3-26                      CORElearn_0.9.41                
-[29] rpart_4.1-1                      cluster_1.14.4                  
+ [1] Cubist_0.0.13                   reshape2_1.2.2                 
+ [3] gbm_2.1                         randomForest_4.6-7             
+ [5] plyr_1.8                        ipred_0.9-1                    
+ [7] prodlim_1.3.3                   class_7.3-7                    
+ [9] nnet_7.3-6                      doMC_1.3.0                     
+[11] iterators_1.0.6                 foreach_1.4.0                  
+[13] RWeka_0.4-15                    party_1.0-6                    
+[15] vcd_1.2-13                      colorspace_1.2-1               
+[17] MASS_7.3-26                     strucchange_1.4-7              
+[19] sandwich_2.2-9                  zoo_1.7-9                      
+[21] coin_1.0-21                     mvtnorm_0.9-9994               
+[23] modeltools_0.2-19               survival_2.37-4                
+[25] rpart_4.1-1                     caret_6.0-22                   
+[27] ggplot2_0.9.3.1                 lattice_0.20-15                
+[29] AppliedPredictiveModeling_1.1-5
 
 loaded via a namespace (and not attached):
-[1] codetools_0.2-8    compiler_3.0.0     KernSmooth_2.23-10 rJava_0.9-4       
-[5] RWekajars_3.7.8-1  stringr_0.6.2      tools_3.0.0       
+ [1] car_2.0-16         codetools_0.2-8    compiler_3.0.1     CORElearn_0.9.41  
+ [5] dichromat_2.0-0    digest_0.6.3       gtable_0.1.2       KernSmooth_2.23-10
+ [9] labeling_0.1       munsell_0.4        proto_0.3-10       RColorBrewer_1.0-5
+[13] rJava_0.9-4        RWekajars_3.7.8-1  scales_0.2.3       stringr_0.6.2     
+[17] tools_3.0.1       
 > 
 > q("no")
 > proc.time()
      user    system   elapsed 
-22313.021   501.313  6919.640 
+21280.849   500.609  6798.887 

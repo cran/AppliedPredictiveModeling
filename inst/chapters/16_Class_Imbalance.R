@@ -115,8 +115,7 @@ fourStats <- function (data, lev = levels(data$obs), model = NULL)
 
 ctrl <- trainControl(method = "cv",
                      classProbs = TRUE,
-                     summaryFunction = fiveStats,
-                     verboseIter = TRUE)
+                     summaryFunction = fiveStats)
 
 ctrlNoProb <- ctrl
 ctrlNoProb$summaryFunction <- fourStats
@@ -161,7 +160,7 @@ lrEvalCM
 set.seed(1401)
 fdaFit <- train(CARAVAN ~ ., data = training,
                 method = "fda",
-                tuneGrid = data.frame(.degree = 1, .nprune = 1:25),
+                tuneGrid = data.frame(degree = 1, nprune = 1:25),
                 metric = "ROC",
                 trControl = ctrl)
 fdaFit
@@ -386,8 +385,8 @@ set.seed(1157)
 sigma <- sigest(CARAVAN ~ ., data = trainingInd[, noNZVSet], frac = .75)
 names(sigma) <- NULL
 
-svmGrid1 <- data.frame(.sigma = sigma[2],
-                       .C = 2^c(2:10))
+svmGrid1 <- data.frame(sigma = sigma[2],
+                       C = 2^c(2:10))
 
 set.seed(1401)
 svmFit <- train(CARAVAN ~ .,
@@ -418,7 +417,7 @@ set.seed(1401)
 svmWtFit <- train(CARAVAN ~ .,
                   data = trainingInd[, noNZVSet],
                   method = "svmRadial",
-                  tuneGrid = svmGrid2,
+                  tuneGrid = svmGrid1,
                   preProc = c("center", "scale"),
                   metric = "Kappa",
                   class.weights = c(insurance = 18, noinsurance = 1),
@@ -434,7 +433,7 @@ svmWtTestCM
 
 initialRpart <- rpart(CARAVAN ~ ., data = training,
                       control = rpart.control(cp = 0.0001))
-rpartGrid <- data.frame(.cp = initialRpart$cptable[, "CP"])
+rpartGrid <- data.frame(cp = initialRpart$cptable[, "CP"])
 
 cmat <- list(loss = matrix(c(0, 1, 20, 0), ncol = 2))
 set.seed(1401)
@@ -449,9 +448,9 @@ cartWMod
 
 
 library(C50)
-c5Grid <- expand.grid(.model = c("tree", "rules"),
-                      .trials = c(1, (1:10)*10),
-                      .winnow = FALSE)
+c5Grid <- expand.grid(model = c("tree", "rules"),
+                      trials = c(1, (1:10)*10),
+                      winnow = FALSE)
 
 finalCost <- matrix(c(0, 20, 1, 0), ncol = 2)
 rownames(finalCost) <- colnames(finalCost) <- levels(training$CARAVAN)

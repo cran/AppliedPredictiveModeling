@@ -63,7 +63,7 @@ GermanCreditTest  <- GermanCredit[-inTrain, ]
 library(kernlab)
 set.seed(231)
 sigDist <- sigest(Class ~ ., data = GermanCreditTrain, frac = 1)
-svmTuneGrid <- data.frame(.sigma = sigDist[1], .C = 2^(-2:7))
+svmTuneGrid <- data.frame(sigma = as.vector(sigDist)[1], C = 2^(-2:7))
 
 ### Optional: parallel processing can be used via the 'do' packages,
 ### such as doMC, doMPI etc. We used doMC (not on Windows) to speed
@@ -83,7 +83,10 @@ svmFit <- train(Class ~ .,
                 method = "svmRadial",
                 preProc = c("center", "scale"),
                 tuneGrid = svmTuneGrid,
-                trControl = trainControl(method = "repeatedcv", repeats = 5))
+                trControl = trainControl(method = "repeatedcv", 
+                                         repeats = 5,
+                                         classProbs = TRUE))
+## classProbs = TRUE was added since the text was written
 
 ## Print the results
 svmFit
@@ -169,6 +172,12 @@ glmProfile
 resamp <- resamples(list(SVM = svmFit, Logistic = glmProfile))
 summary(resamp)
 
+## These results are slightly different from those shown in the text.
+## There are some differences in the train() function since the 
+## original results were produced. This is due to a difference in
+## predictions from the ksvm() function when class probs are requested
+## and when they are not. See, for example, 
+## https://stat.ethz.ch/pipermail/r-help/2013-November/363188.html
 
 modelDifferences <- diff(resamp)
 summary(modelDifferences)

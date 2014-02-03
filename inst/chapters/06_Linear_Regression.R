@@ -126,7 +126,7 @@ testResults <- data.frame(obs = solTestY,
 set.seed(100)
 plsTune <- train(x = solTrainXtrans, y = solTrainY,
                  method = "pls",
-                 tuneGrid = expand.grid(.ncomp = 1:20),
+                 tuneGrid = expand.grid(ncomp = 1:20),
                  trControl = ctrl)
 plsTune
 
@@ -135,7 +135,7 @@ testResults$PLS <- predict(plsTune, solTestXtrans)
 set.seed(100)
 pcrTune <- train(x = solTrainXtrans, y = solTrainY,
                  method = "pcr",
-                 tuneGrid = expand.grid(.ncomp = 1:35),
+                 tuneGrid = expand.grid(ncomp = 1:35),
                  trControl = ctrl)
 pcrTune                  
 
@@ -160,12 +160,14 @@ plot(plsImp, top = 25, scales = list(y = list(cex = .95)))
 ################################################################################
 ### Section 6.4 Penalized Models
 
-ridgeGrid <- expand.grid(.lambda = seq(0, .1, length = 15), 
-                         .fraction = 1)
+## The text used the elasticnet to obtain a ridge regression model.
+## There is now a simple ridge regression method.
+
+ridgeGrid <- expand.grid(lambda = seq(0, .1, length = 15))
 
 set.seed(100)
 ridgeTune <- train(x = solTrainXtrans, y = solTrainY,
-                   method = "enet",
+                   method = "ridge",
                    tuneGrid = ridgeGrid,
                    trControl = ctrl,
                    preProc = c("center", "scale"))
@@ -174,8 +176,8 @@ ridgeTune
 print(update(plot(ridgeTune), xlab = "Penalty"))
 
 
-enetGrid <- expand.grid(.lambda = c(0, 0.01, .1), 
-                        .fraction = seq(.05, 1, length = 20))
+enetGrid <- expand.grid(lambda = c(0, 0.01, .1), 
+                        fraction = seq(.05, 1, length = 20))
 set.seed(100)
 enetTune <- train(x = solTrainXtrans, y = solTrainY,
                   method = "enet",

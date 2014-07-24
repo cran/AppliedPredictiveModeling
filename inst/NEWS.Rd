@@ -3,6 +3,14 @@
 \newcommand{\cpkg}{\href{http://CRAN.R-project.org/package=#1}{\pkg{#1}}}
 
 
+\section{Changes in version 1.1-6}{
+
+\itemize{
+\item The file \code{CreateGrantData.R} was updated to include code to create the objects \code{factorPredictors} and \code{factorForm}. 
+
+}
+}
+
 \section{Changes in version 1.1-5}{
 
 The package dependencies were updated. Some were moved to 'Imports'

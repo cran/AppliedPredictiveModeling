@@ -49,8 +49,7 @@ library(lubridate)
 ## machine) but will consume more memory.
 cores <- 3
 
-if(cores > 1)
-  {
+if(cores > 1) {
     library(doMC)
     registerDoMC(cores)
   }
@@ -94,8 +93,7 @@ dpmt <- sort(dpmt[!is.na(dpmt)])
 ## Split up the data by role number (1-15) and add any missing columns
 ## (roles 1-5 have more columns than the others)
 tmp <- vector(mode = "list", length = 15)
-for(i in 1:15)
-  {
+for(i in 1:15) {
     tmpData <- raw[, c("Grant.Application.ID", grep(paste("\\.", i, "$", sep = ""), names(raw), value = TRUE))]
     names(tmpData) <- gsub(paste("\\.", i, "$", sep = ""), "", names(tmpData))
     if(i == 1) nms <- names(tmpData)
@@ -164,8 +162,7 @@ vertical$No..of.Years.in.Uni.at.Time.of.Grant <- factor(vertical$No..of.Years.in
 ######################################################################
 ## A function to shorten the role titles
 
-shortNames <- function(x, pre = "")
-  {
+shortNames <- function(x, pre = ""){
     x <- gsub("EXT_CHIEF_INVESTIGATOR",  "ECI", x)
     x <- gsub("STUD_CHIEF_INVESTIGATOR", "SCI", x)
     x <- gsub("CHIEF_INVESTIGATOR",      "CI", x)
@@ -180,8 +177,7 @@ shortNames <- function(x, pre = "")
   }
 
 ## A function to find and remove zero-variance ("ZV") predictors
-noZV <- function(x)
-  {
+noZV <- function(x) {
     keepers <- unlist(lapply(x, function(x) length(unique(x)) > 1))
     x[,keepers,drop = FALSE]
   }
@@ -206,8 +202,7 @@ names(investCount) <- shortNames(names(investCount), "Num")
 ## For each role, calculate the frequency of people in each age group
 
 investDOB <- ddply(vertical, .(Grant.Application.ID),
-                   function(x)
-                   {
+                   function(x) {
                      tabDF <- as.data.frame(table(x$Role, x$Year.of.Birth))
                      out <- data.frame(t(tabDF$Freq))
                      names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -221,8 +216,7 @@ investDOB <- noZV(investDOB)
 ## For each role, calculate the frequency of people from each country
 
 investCountry <- ddply(vertical, .(Grant.Application.ID),
-                       function(x)
-                       {
+                       function(x) {
                          tabDF <- as.data.frame(table(x$Role, x$Country.of.Birth))
                          out <- data.frame(t(tabDF$Freq))
                          names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -236,8 +230,7 @@ investCountry <- noZV(investCountry)
 ## For each role, calculate the frequency of people for each language
 
 investLang <- ddply(vertical, .(Grant.Application.ID),
-                    function(x)
-                    {
+                    function(x) {
                       tabDF <- as.data.frame(table(x$Role, x$Home.Language))
                       out <- data.frame(t(tabDF$Freq))
                       names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -251,8 +244,7 @@ investLang <- noZV(investLang)
 ## For each role, determine who as a Ph.D.
 
 investPhD <- ddply(vertical, .(Grant.Application.ID),
-                   function(x)
-                   {
+                   function(x) {
                      tabDF <- as.data.frame(table(x$Role, x$With.PHD))
                      out <- data.frame(t(tabDF$Freq))
                      names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -269,8 +261,7 @@ investPhD <- noZV(investPhD)
 ## grants
 
 investGrants <- ddply(vertical, .(Grant.Application.ID, Role),
-                      function(x)
-                      {
+                      function(x) {
                         data.frame(Success = sum(x$Number.of.Successful.Grant, na.rm = TRUE),
                                    Unsuccess = sum(x$Number.of.Unsuccessful.Grant, na.rm = TRUE))
 
@@ -286,8 +277,7 @@ investGrants <- noZV(investGrants)
 ## Create variables for each role/department combination
 
 investDept <- ddply(vertical, .(Grant.Application.ID),
-                    function(x)
-                    {
+                    function(x) {
                       tabDF <- as.data.frame(table(x$Role, x$Dept.No.))
                       out <- data.frame(t(tabDF$Freq))
                       names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -302,8 +292,7 @@ investDept <- noZV(investDept)
 
 
 investFaculty <- ddply(vertical, .(Grant.Application.ID),
-                       function(x)
-                       {
+                       function(x) {
                          tabDF <- as.data.frame(table(x$Role, x$Faculty.No.))
                          out <- data.frame(t(tabDF$Freq))
                          names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -328,8 +317,7 @@ investDuration[is.na(investDuration)] <- 0
 ## removed for models that cannot deal with such a linear dependency
 
 totalPub <- ddply(vertical, .(Grant.Application.ID),
-                   function(x)
-                   {
+                   function(x) {
                      data.frame(AstarTotal = sum(x$A., na.rm = TRUE),
                                 ATotal = sum(x$A, na.rm = TRUE),
                                 BTotal = sum(x$B, na.rm = TRUE),
@@ -344,8 +332,7 @@ totalPub <- ddply(vertical, .(Grant.Application.ID),
 ## type per role.
 
 investPub <- ddply(vertical, .(Grant.Application.ID, Role),
-                   function(x)
-                   {
+                   function(x) {
                      data.frame(Astar = sum(x$A., na.rm = TRUE),
                                 A = sum(x$A, na.rm = TRUE),
                                 B = sum(x$B, na.rm = TRUE),
@@ -457,6 +444,22 @@ testing <- testing[, names(training)]
 ### correlated with other predictors
 
 fullSet <- names(training)[names(training) != "Class"]
+
+###################################################################
+### In the classification tree chapter, there is a different set
+### of predictors that use factor encodings of some of the 
+### predictors
+
+factorPredictors <- names(training)[names(training) != "Class"]
+factorPredictors <- factorPredictors[!grepl("Sponsor[0-9]", factorPredictors)]
+factorPredictors <- factorPredictors[!grepl("SponsorUnk", factorPredictors)]
+factorPredictors <- factorPredictors[!grepl("ContractValueBand[A-Z]", factorPredictors)]
+factorPredictors <- factorPredictors[!grepl("GrantCat", factorPredictors)]
+factorPredictors <- factorPredictors[!(factorPredictors %in% levels(training$Month))]
+factorPredictors <- factorPredictors[!(factorPredictors %in% levels(training$Weekday))]
+
+factorForm <- paste("Class ~ ", paste(factorPredictors, collapse = "+"))
+factorForm <- as.formula(factorForm)
 
 ### Some are extremely correlated, so remove
 predCorr <- cor(training[,fullSet])

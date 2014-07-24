@@ -1,6 +1,6 @@
 
-R version 3.0.0 RC (2013-03-27 r62426) -- "Masked Marvel"
-Copyright (C) 2013 The R Foundation for Statistical Computing
+R Under development (unstable) (2014-06-02 r65832) -- "Unsuffered Consequences"
+Copyright (C) 2014 The R Foundation for Statistical Computing
 Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
 R is free software and comes with ABSOLUTELY NO WARRANTY.
@@ -61,22 +61,27 @@ Type 'q()' to quit R.
 > ## Load required libraries
 > library(plyr)
 > library(caret)
-Loading required package: cluster
-Loading required package: foreach
 Loading required package: lattice
-Loading required package: reshape2
+Loading required package: ggplot2
 > library(lubridate)
+
+Attaching package: 'lubridate'
+
+The following object is masked from 'package:plyr':
+
+    here
+
 > 
 > ## How many cores on the machine should be used for the data
 > ## processing. Making cores > 1 will speed things up (depending on your
 > ## machine) but will consume more memory.
 > cores <- 3
 > 
-> if(cores > 1)
-+   {
+> if(cores > 1) {
 +     library(doMC)
 +     registerDoMC(cores)
 +   }
+Loading required package: foreach
 Loading required package: iterators
 Loading required package: parallel
 > 
@@ -119,8 +124,7 @@ Loading required package: parallel
 > ## Split up the data by role number (1-15) and add any missing columns
 > ## (roles 1-5 have more columns than the others)
 > tmp <- vector(mode = "list", length = 15)
-> for(i in 1:15)
-+   {
+> for(i in 1:15) {
 +     tmpData <- raw[, c("Grant.Application.ID", grep(paste("\\.", i, "$", sep = ""), names(raw), value = TRUE))]
 +     names(tmpData) <- gsub(paste("\\.", i, "$", sep = ""), "", names(tmpData))
 +     if(i == 1) nms <- names(tmpData)
@@ -189,8 +193,7 @@ Loading required package: parallel
 > ######################################################################
 > ## A function to shorten the role titles
 > 
-> shortNames <- function(x, pre = "")
-+   {
+> shortNames <- function(x, pre = ""){
 +     x <- gsub("EXT_CHIEF_INVESTIGATOR",  "ECI", x)
 +     x <- gsub("STUD_CHIEF_INVESTIGATOR", "SCI", x)
 +     x <- gsub("CHIEF_INVESTIGATOR",      "CI", x)
@@ -205,8 +208,7 @@ Loading required package: parallel
 +   }
 > 
 > ## A function to find and remove zero-variance ("ZV") predictors
-> noZV <- function(x)
-+   {
+> noZV <- function(x) {
 +     keepers <- unlist(lapply(x, function(x) length(unique(x)) > 1))
 +     x[,keepers,drop = FALSE]
 +   }
@@ -231,8 +233,7 @@ Loading required package: parallel
 > ## For each role, calculate the frequency of people in each age group
 > 
 > investDOB <- ddply(vertical, .(Grant.Application.ID),
-+                    function(x)
-+                    {
++                    function(x) {
 +                      tabDF <- as.data.frame(table(x$Role, x$Year.of.Birth))
 +                      out <- data.frame(t(tabDF$Freq))
 +                      names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -246,8 +247,7 @@ Loading required package: parallel
 > ## For each role, calculate the frequency of people from each country
 > 
 > investCountry <- ddply(vertical, .(Grant.Application.ID),
-+                        function(x)
-+                        {
++                        function(x) {
 +                          tabDF <- as.data.frame(table(x$Role, x$Country.of.Birth))
 +                          out <- data.frame(t(tabDF$Freq))
 +                          names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -261,8 +261,7 @@ Loading required package: parallel
 > ## For each role, calculate the frequency of people for each language
 > 
 > investLang <- ddply(vertical, .(Grant.Application.ID),
-+                     function(x)
-+                     {
++                     function(x) {
 +                       tabDF <- as.data.frame(table(x$Role, x$Home.Language))
 +                       out <- data.frame(t(tabDF$Freq))
 +                       names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -276,8 +275,7 @@ Loading required package: parallel
 > ## For each role, determine who as a Ph.D.
 > 
 > investPhD <- ddply(vertical, .(Grant.Application.ID),
-+                    function(x)
-+                    {
++                    function(x) {
 +                      tabDF <- as.data.frame(table(x$Role, x$With.PHD))
 +                      out <- data.frame(t(tabDF$Freq))
 +                      names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -294,8 +292,7 @@ Loading required package: parallel
 > ## grants
 > 
 > investGrants <- ddply(vertical, .(Grant.Application.ID, Role),
-+                       function(x)
-+                       {
++                       function(x) {
 +                         data.frame(Success = sum(x$Number.of.Successful.Grant, na.rm = TRUE),
 +                                    Unsuccess = sum(x$Number.of.Unsuccessful.Grant, na.rm = TRUE))
 + 
@@ -311,8 +308,7 @@ Loading required package: parallel
 > ## Create variables for each role/department combination
 > 
 > investDept <- ddply(vertical, .(Grant.Application.ID),
-+                     function(x)
-+                     {
++                     function(x) {
 +                       tabDF <- as.data.frame(table(x$Role, x$Dept.No.))
 +                       out <- data.frame(t(tabDF$Freq))
 +                       names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -327,8 +323,7 @@ Loading required package: parallel
 > 
 > 
 > investFaculty <- ddply(vertical, .(Grant.Application.ID),
-+                        function(x)
-+                        {
++                        function(x) {
 +                          tabDF <- as.data.frame(table(x$Role, x$Faculty.No.))
 +                          out <- data.frame(t(tabDF$Freq))
 +                          names(out) <- paste(tabDF$Var1, tabDF$Var2, sep = ".")
@@ -353,8 +348,7 @@ Loading required package: parallel
 > ## removed for models that cannot deal with such a linear dependency
 > 
 > totalPub <- ddply(vertical, .(Grant.Application.ID),
-+                    function(x)
-+                    {
++                    function(x) {
 +                      data.frame(AstarTotal = sum(x$A., na.rm = TRUE),
 +                                 ATotal = sum(x$A, na.rm = TRUE),
 +                                 BTotal = sum(x$B, na.rm = TRUE),
@@ -369,8 +363,7 @@ Loading required package: parallel
 > ## type per role.
 > 
 > investPub <- ddply(vertical, .(Grant.Application.ID, Role),
-+                    function(x)
-+                    {
++                    function(x) {
 +                      data.frame(Astar = sum(x$A., na.rm = TRUE),
 +                                 A = sum(x$A, na.rm = TRUE),
 +                                 B = sum(x$B, na.rm = TRUE),
@@ -407,7 +400,6 @@ Loading required package: parallel
 > 
 > ## Make a lubridate object for the time, then derive the day, week and month info
 > startTime <- dmy(raw$Start.date)
- 8708 parsed with %d/%m/%y
 > 
 > grantData$Month <- factor(as.character(month(startTime, label = TRUE)))
 > grantData$Weekday <- factor(as.character(wday(startTime, label = TRUE)))
@@ -586,6 +578,22 @@ NULL
 > 
 > fullSet <- names(training)[names(training) != "Class"]
 > 
+> ###################################################################
+> ### In the classification tree chapter, there is a different set
+> ### of predictors that use factor encodings of some of the 
+> ### predictors
+> 
+> factorPredictors <- names(training)[names(training) != "Class"]
+> factorPredictors <- factorPredictors[!grepl("Sponsor[0-9]", factorPredictors)]
+> factorPredictors <- factorPredictors[!grepl("SponsorUnk", factorPredictors)]
+> factorPredictors <- factorPredictors[!grepl("ContractValueBand[A-Z]", factorPredictors)]
+> factorPredictors <- factorPredictors[!grepl("GrantCat", factorPredictors)]
+> factorPredictors <- factorPredictors[!(factorPredictors %in% levels(training$Month))]
+> factorPredictors <- factorPredictors[!(factorPredictors %in% levels(training$Weekday))]
+> 
+> factorForm <- paste("Class ~ ", paste(factorPredictors, collapse = "+"))
+> factorForm <- as.formula(factorForm)
+> 
 > ### Some are extremely correlated, so remove
 > predCorr <- cor(training[,fullSet])
 > highCorr <- findCorrelation(predCorr, .99)
@@ -617,26 +625,33 @@ NULL
  chr [1:252] "NumCI" "NumDR" "NumECI" "NumPS" "NumSCI" "NumSR" ...
 > 
 > sessionInfo()
-R version 3.0.0 RC (2013-03-27 r62426)
+R Under development (unstable) (2014-06-02 r65832)
 Platform: x86_64-apple-darwin10.8.0 (64-bit)
 
 locale:
-[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+[1] en_US.US-ASCII/en_US.US-ASCII/en_US.US-ASCII/C/en_US.US-ASCII/en_US.US-ASCII
 
 attached base packages:
 [1] parallel  stats     graphics  grDevices utils     datasets  methods  
 [8] base     
 
 other attached packages:
-[1] doMC_1.3.0      iterators_1.0.6 lubridate_1.2.0 caret_5.16-04  
-[5] reshape2_1.2.2  lattice_0.20-15 foreach_1.4.0   cluster_1.14.4 
-[9] plyr_1.8       
+[1] doMC_1.3.3      iterators_1.0.7 foreach_1.4.2   lubridate_1.3.3
+[5] caret_6.0-30    ggplot2_0.9.3.1 lattice_0.20-29 plyr_1.8.1     
 
 loaded via a namespace (and not attached):
-[1] codetools_0.2-8 compiler_3.0.0  digest_0.6.3    grid_3.0.0     
-[5] memoise_0.1     stringr_0.6.2  
+ [1] BradleyTerry2_1.0-5 brglm_0.5-9         car_2.0-19         
+ [4] codetools_0.2-8     colorspace_1.2-4    compiler_3.2.0     
+ [7] dichromat_2.0-0     digest_0.6.4        grid_3.2.0         
+[10] gtable_0.1.2        gtools_3.4.1        labeling_0.2       
+[13] lme4_1.1-6          MASS_7.3-33         Matrix_1.1-3       
+[16] memoise_0.2.1       minqa_1.2.3         munsell_0.4.2      
+[19] nlme_3.1-117        nnet_7.3-8          proto_0.3-10       
+[22] RColorBrewer_1.0-5  Rcpp_0.11.1         RcppEigen_0.3.2.1.2
+[25] reshape2_1.4        scales_0.2.3        splines_3.2.0      
+[28] stringr_0.6.2      
 > 
 > 
 > proc.time()
-    user   system  elapsed 
-2738.797  171.440 2691.709 
+   user  system elapsed 
+859.647  20.988 760.090 

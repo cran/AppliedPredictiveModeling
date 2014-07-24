@@ -1,4 +1,4 @@
-4f1a0f11a6a243d5e47446702f618cc8 *DESCRIPTION
+b956c4b3e5aad17e35ac120a5d5f59d3 *DESCRIPTION
 03e5df17ec09e62322761dbf70cd3a8a *NAMESPACE
 e4e564d2188913c297d854a86868bd37 *R/bookTheme.R
 538821ec8c21e26d4b936611aa157bc4 *R/easyBoundaryFunc.R
@@ -21,7 +21,7 @@ e1590269851cf810fdffa832b6cf6d65 *data/schedulingData.RData
 669172e9b524f9194a23fbc84a2816f8 *data/segmentationOriginal.RData
 06780bd86a4db76cb2a8eb12ef107df7 *data/solubility.RData
 5e5422a8c05125f3ab1822f6c525296a *data/twoClassData.RData
-0c14b02b846f7c50801049f7e30d9a86 *inst/NEWS.Rd
+47ca37b7084f35df9345c9c5b6a3d461 *inst/NEWS.Rd
 55afb317aa767a6e82c6c52ee985563f *inst/chapters/02_A_Short_Tour.R
 5a487c219abde639b85d7275c6a4bf31 *inst/chapters/02_A_Short_Tour.Rout
 ec4768cf8bf24124e998a1ce680dceb6 *inst/chapters/03_Data_Pre_Processing.R
@@ -52,8 +52,8 @@ cdd39d98758aa17566201c45150265b8 *inst/chapters/18_Importance.R
 4288e31b3484d3719f98cf377e756e7f *inst/chapters/18_Importance.Rout
 001bc824c0505d4c462039b112364d9d *inst/chapters/19_Feature_Select.R
 487d84200b36ed46159a608ec81fedc0 *inst/chapters/19_Feature_Select.Rout
-ee8d141c6ff92f1878bb1954d21cab67 *inst/chapters/CreateGrantData.R
-6b7d3facf17c4ad5704ca9c54c17acc1 *inst/chapters/CreateGrantData.Rout
+3afe6f6859238c711c0ce0ba33678051 *inst/chapters/CreateGrantData.R
+8a85f9749667d240d73b57de77df5b31 *inst/chapters/CreateGrantData.Rout
 6a51123bb7533bc6ac7cc60e20c30f7c *man/AlzheimerDisease.Rd
 79b66304686ea5f41624e941a839f783 *man/AppliedPredictiveModeling-package.Rd
 b5c2029d7b9d21d128b3084b108404a8 *man/ChemicalManufacturingProcess.Rd

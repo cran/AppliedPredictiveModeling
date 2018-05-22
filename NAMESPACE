@@ -1,3 +1,8 @@
 exportPattern("^[[:alpha:]]+")
 
 import(CORElearn, MASS, plyr, reshape2)
+importFrom("grDevices", "rgb")
+importFrom("stats", "runif", "sd")
+importFrom("utils", "install.packages")
+importFrom("lattice", "trellis.par.set", "trellis.par.get", "panel.xyplot")
+importFrom("ellipse", "ellipse")

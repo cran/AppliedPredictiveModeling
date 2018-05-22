@@ -1,2 +1,3 @@
-scriptLocation <- function() system.file("chapters", package = "AppliedPredictiveModeling")
-
+scriptLocation <-
+  function()
+    system.file("chapters", package = "AppliedPredictiveModeling")

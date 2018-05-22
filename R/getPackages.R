@@ -1,8 +1,8 @@
 
 
-getPackages <- function(chapter, ...)
-{
-  if(is.numeric(chapter)) chapter <- paste(chapter)
+getPackages <- function(chapter, ...) {
+  if(is.numeric(chapter)) 
+    chapter <- paste(chapter)
   pkg <- list()
   pkg[["2"]] <- c("earth", "caret", "lattice")
   pkg[["3"]] <- c("e1071", "caret", "corrplot")
@@ -30,16 +30,16 @@ getPackages <- function(chapter, ...)
   pkg[["18"]] <- c("caret", "CORElearn", "corrplot", "pROC", "minerva")
   pkg[["19"]] <- c("caret", "MASS", "corrplot", "RColorBrewer", "randomForest", 
                    "kernlab", "klaR")
-  plist <- paste(paste("'", names(pkg), "'", sep = ""), collapse = ", ")
-  if(!any(chapter %in% names(pkg))) stop(paste("'chapter' must be: ",
-                                               paste(plist, collapse = ", ")),
-                                         sep = "")  
-  
+  plist <-
+    paste(paste("'", names(pkg), "'", sep = ""), collapse = ", ")
+  if (!any(chapter %in% names(pkg)))
+    stop(paste("'chapter' must be: ",
+               paste(plist, collapse = ", ")))  
   
   pkg <- unlist(pkg[chapter])
   pkg <- pkg[!is.na(pkg)]
   pkg <- pkg[pkg != ""]
   pkg <- pkg[order(tolower(pkg))]
-
+  
   install.packages(pkg, ...)
 }

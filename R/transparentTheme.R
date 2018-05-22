@@ -1,17 +1,16 @@
 transparentTheme <-
-function(set = TRUE, pchSize = 1, trans = .2)
-  {
-    library(lattice)
-    theme <-    list(plot.polygon = list(alpha = 1, col = "aliceblue", border = "black", lty = 1, lwd = 1),
-                     background = list(col = "transparent"), 
-                     bar.fill = list(col = "#cce6ff"), 
-                     box.rectangle = list(col = "black"), 
-                     box.umbrella = list(col = "black"), 
-                     dot.line = list(col = "#e8e8e8"), 
-                     dot.symbol = list(col = "black"), 
-                     plot.line = list(col = "black"), 
-                     plot.symbol = list(col = "black"), 
-                     regions = list(col = 
+  function(set = TRUE, pchSize = 1, trans = .2) {
+    theme <- list(
+      plot.polygon = list(alpha = 1, col = "aliceblue", border = "black", lty = 1, lwd = 1),
+      background = list(col = "transparent"), 
+      bar.fill = list(col = "#cce6ff"), 
+      box.rectangle = list(col = "black"), 
+      box.umbrella = list(col = "black"), 
+      dot.line = list(col = "#e8e8e8"), 
+      dot.symbol = list(col = "black"), 
+      plot.line = list(col = "black"), 
+      plot.symbol = list(col = "black"), 
+      regions = list(col = 
                        c("#FEF8FA", "#FDF6F9", "#FBF5F9", "#FAF3F8", 
                          "#F8F2F7", "#F7F0F7", "#F5EEF6", "#F4EDF5", 
                          "#F2EBF5", "#F1EAF4", "#EFE8F3", "#EDE7F2", 
@@ -32,28 +31,29 @@ function(set = TRUE, pchSize = 1, trans = .2)
                          "#1C80B9", "#187EB7", "#157CB6", "#127AB5", 
                          "#0F78B3", "#0D76B2", "#0A73B0", "#0971AE", 
                          "#076FAC", "#066DAA", "#056AA7", "#0568A5")
-                       ), 
-                     strip.shingle = list(col = c(
-                                            "#ff7f00", "#00ff00", "#00ffff",
-                                            "#ff00ff", "#ff0000", "#ffff00", "#0080ff")), 
-                     strip.background = list(col = c(
-                                               "#ffe5cc", "#ccffcc", "#ccffff",
-                                               "#ffccff", "#ffcccc", "#ffffcc", "#cce6ff")), 
-                     reference.line = list(col = "#e8e8e8"), 
-                     superpose.line = list(
-                       col = c(
-                         rgb(1, 0, 0, trans), rgb(0, 0, 1, trans),
-                         rgb(0.3984375, 0.7578125, 0.6445312, max(.6, trans)),
-                         rgb(0, 0, 0, trans)), 
-                       lty = rep(1:2, 6)), 
-                     superpose.symbol = list(
-                       pch = c(16, 15, 17, 18, 16), 
-                       cex = rep(pchSize,  5), 
-                       col = c(
-                         rgb(1, 0, 0, trans), rgb(0, 0, 1, trans),
-                         rgb(0.3984375, 0.7578125, 0.6445312, max(.6, trans)),
-                         rgb(0, 0, 0, trans))))
-
+      ), 
+      strip.shingle = list(col = c(
+        "#ff7f00", "#00ff00", "#00ffff",
+        "#ff00ff", "#ff0000", "#ffff00", "#0080ff")), 
+      strip.background = list(col = c(
+        "#ffe5cc", "#ccffcc", "#ccffff",
+        "#ffccff", "#ffcccc", "#ffffcc", "#cce6ff")), 
+      reference.line = list(col = "#e8e8e8"), 
+      superpose.line = list(
+        col = c(
+          rgb(1, 0, 0, trans), rgb(0, 0, 1, trans),
+          rgb(0.3984375, 0.7578125, 0.6445312, max(.6, trans)),
+          rgb(0, 0, 0, trans)), 
+        lty = rep(1:2, 6)), 
+      superpose.symbol = list(
+        pch = c(16, 15, 17, 18, 16), 
+        cex = rep(pchSize,  5), 
+        col = c(
+          rgb(1, 0, 0, trans), rgb(0, 0, 1, trans),
+          rgb(0.3984375, 0.7578125, 0.6445312, max(.6, trans)),
+          rgb(0, 0, 0, trans)))
+    )
+    
     if(set) trellis.par.set(theme, warn = FALSE)
     invisible(theme)
   }

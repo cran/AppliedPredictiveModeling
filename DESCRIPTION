@@ -1,17 +1,18 @@
 Package: AppliedPredictiveModeling
 Type: Package
 Title: Functions and Data Sets for 'Applied Predictive Modeling'
-Version: 1.1-6
-Date: 2014-07-24
+Version: 1.1-7
+Date: 2018-05-22
 Author: Max Kuhn, Kjell Johnson
 Maintainer: Max Kuhn <mxkuhn@gmail.com>
-Description: A few functions and several data set for the Springer book 'Applied Predictive Modeling'
+Description: A few functions and several data set for the Springer book 'Applied Predictive Modeling'.
 URL: http://appliedpredictivemodeling.com/
 Depends: R (>= 2.10)
-Imports: CORElearn, MASS, plyr, reshape2
-Suggests: caret (>= 6.0-22), lattice, ellipse
-License: GPL
-Packaged: 2014-07-25 13:37:54 UTC; kuhna03
+Imports: CORElearn, MASS, plyr, reshape2, lattice, ellipse
+Suggests: caret (>= 6.0-22)
+License: GPL-2
+RoxygenNote: 6.0.1
 NeedsCompilation: no
+Packaged: 2018-05-22 19:03:00 UTC; max
 Repository: CRAN
-Date/Publication: 2014-07-25 18:42:22
+Date/Publication: 2018-05-22 19:14:21 UTC

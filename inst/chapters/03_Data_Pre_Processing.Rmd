@@ -64,24 +64,116 @@ histogram(~segTrainTrans$PerimCh1,
           ylab = " ",
           type = "count")
 ```
+# Section 3.3 Data Transformations for Multiple Predictors
 
-max(segTrainX$VarIntenCh3)/min(segTrainX$VarIntenCh3)
+```{r}
 
-library(e1071)
-skewness(segTrainX$VarIntenCh3)
 
-library(caret)
+## R's prcomp is used to conduct PCA
+pr <- prcomp(~ AvgIntenCh1 + EntropyIntenCh1, 
+             data = segTrainTrans, 
+             scale. = TRUE)
 
-## Use caret's preProcess function to transform for skewness
-segPP <- preProcess(segTrainX, method = "BoxCox")
+transparentTheme(pchSize = .7, trans = .3)
 
-## Apply the transformations
+xyplot(AvgIntenCh1 ~ EntropyIntenCh1,
+       data = segTrainTrans,
+       groups = segTrain$Class,
+       xlab = "Channel 1 Fiber Width",
+       ylab = "Intensity Entropy Channel 1",
+       auto.key = list(columns = 2),
+       type = c("p", "g"),
+       main = "Original Data",
+       aspect = 1)
+
+xyplot(PC2 ~ PC1,
+       data = as.data.frame(pr$x),
+       groups = segTrain$Class,
+       xlab = "Principal Component #1",
+       ylab = "Principal Component #2",
+       main = "Transformed",
+       xlim = extendrange(pr$x),
+       ylim = extendrange(pr$x),
+       type = c("p", "g"),
+       aspect = 1)
+
+
+## Apply PCA to the entire set of predictors.
+
+## There are a few predictors with only a single value, so we remove these first
+## (since PCA uses variances, which would be zero)
+
+isZV <- apply(segTrainX, 2, function(x) length(unique(x)) == 1)
+segTrainX <- segTrainX[, !isZV]
+
+segPP <- preProcess(segTrainX, c("BoxCox", "center", "scale"))
 segTrainTrans <- predict(segPP, segTrainX)
 
-## Results for a single predictor
-segPP$bc$VarIntenCh3
+segPCA <- prcomp(segTrainTrans, center = TRUE, scale. = TRUE)
 
-histogram(~segTrainX$VarIntenCh3,
+## Plot a scatterplot matrix of the first three components
+transparentTheme(pchSize = .8, trans = .3)
+
+panelRange <- extendrange(segPCA$x[, 1:3])
+splom(as.data.frame(segPCA$x[, 1:3]),
+      groups = segTrainClass,
+      type = c("p", "g"),
+      as.table = TRUE,
+      auto.key = list(columns = 2),
+      prepanel.limits = function(x) panelRange)
+
+## Format the rotation values for plotting
+segRot <- as.data.frame(segPCA$rotation[, 1:3])
+
+## Derive the channel variable
+vars <- rownames(segPCA$rotation)
+channel <- rep(NA, length(vars))
+channel[grepl("Ch1$", vars)] <- "Channel 1"
+channel[grepl("Ch2$", vars)] <- "Channel 2"
+channel[grepl("Ch3$", vars)] <- "Channel 3"
+channel[grepl("Ch4$", vars)] <- "Channel 4"
+
+segRot$Channel <- channel
+segRot <- segRot[complete.cases(segRot),]
+segRot$Channel <- factor(as.character(segRot$Channel))
+
+## Plot a scatterplot matrix of the first three rotation variables
+
+transparentTheme(pchSize = .8, trans = .7)
+panelRange <- extendrange(segRot[, 1:3])
+library(ellipse)
+upperp <- function(...)
+  {
+    args <- list(...)
+    circ1 <- ellipse(diag(rep(1, 2)), t = .1)
+    panel.xyplot(circ1[,1], circ1[,2],
+                 type = "l",
+                 lty = trellis.par.get("reference.line")$lty,
+                 col = trellis.par.get("reference.line")$col,
+                 lwd = trellis.par.get("reference.line")$lwd)
+    circ2 <- ellipse(diag(rep(1, 2)), t = .2)
+    panel.xyplot(circ2[,1], circ2[,2],
+                 type = "l",
+                 lty = trellis.par.get("reference.line")$lty,
+                 col = trellis.par.get("reference.line")$col,
+                 lwd = trellis.par.get("reference.line")$lwd)
+    circ3 <- ellipse(diag(rep(1, 2)), t = .3)
+    panel.xyplot(circ3[,1], circ3[,2],
+                 type = "l",
+                 lty = trellis.par.get("reference.line")$lty,
+                 col = trellis.par.get("reference.line")$col,
+                 lwd = trellis.par.get("reference.line")$lwd)
+    panel.xyplot(args$x, args$y, groups = args$groups, subscripts = args$subscripts)
+  }
+splom(~segRot[, 1:3],
+      groups = segRot$Channel,
+      lower.panel = function(...){}, upper.panel = upperp,
+      prepanel.limits = function(x) panelRange,
+      auto.key = list(columns = 2))
+```
+
+
+histogram(segTrainX$VarIntenCh3,
           xlab = "Natural Units",
           type = "count")
 

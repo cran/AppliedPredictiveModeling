@@ -1,0 +1,108 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+# Section 3.1 Case Study: Cell Segmentation in High-Content Screening
+
+```{r}
+library(AppliedPredictiveModeling)
+data(segmentationOriginal)
+
+## Retain the original training set
+segTrain <- subset(segmentationOriginal, Case == "Train")
+
+## Remove the first three columns (identifier columns)
+segTrainX <- segTrain[, -(1:3)]
+segTrainClass <- segTrain$Class
+```
+
+
+### Section 3.2 Data Transformations for Individual Predictors
+
+## The column VarIntenCh3 measures the standard deviation of the intensity
+## of the pixels in the actin filaments
+
+```{r}
+max(segTrainX$VarIntenCh3)/min(segTrainX$VarIntenCh3)
+
+library(e1071)
+skewness(segTrainX$VarIntenCh3)
+
+library(caret)
+
+## Use caret's preProcess function to transform for skewness
+segPP <- preProcess(segTrainX, method = "BoxCox")
+
+## Apply the transformations
+segTrainTrans <- predict(segPP, segTrainX)
+
+## Results for a single predictor
+segPP$bc$VarIntenCh3
+
+histogram(~segTrainX$VarIntenCh3,
+          xlab = "Natural Units",
+          type = "count")
+
+histogram(~log(segTrainX$VarIntenCh3),
+          xlab = "Log Units",
+          ylab = " ",
+          type = "count")
+
+segPP$bc$PerimCh1
+
+histogram(~segTrainX$PerimCh1,
+          xlab = "Natural Units",
+          type = "count")
+
+histogram(~segTrainTrans$PerimCh1,
+          xlab = "Transformed Data",
+          ylab = " ",
+          type = "count")
+```
+
+max(segTrainX$VarIntenCh3)/min(segTrainX$VarIntenCh3)
+
+library(e1071)
+skewness(segTrainX$VarIntenCh3)
+
+library(caret)
+
+## Use caret's preProcess function to transform for skewness
+segPP <- preProcess(segTrainX, method = "BoxCox")
+
+## Apply the transformations
+segTrainTrans <- predict(segPP, segTrainX)
+
+## Results for a single predictor
+segPP$bc$VarIntenCh3
+
+histogram(~segTrainX$VarIntenCh3,
+          xlab = "Natural Units",
+          type = "count")
+
+histogram(~log(segTrainX$VarIntenCh3),
+          xlab = "Log Units",
+          ylab = " ",
+          type = "count")
+
+segPP$bc$PerimCh1
+
+histogram(~segTrainX$PerimCh1,
+          xlab = "Natural Units",
+          type = "count")
+
+histogram(~segTrainTrans$PerimCh1,
+          xlab = "Transformed Data",
+          ylab = " ",
+          type = "count")
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.

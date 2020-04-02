@@ -1,11 +1,12 @@
 ---
 title: "R Notebook"
-output: html_notebook
+knit: (function(input_file, encoding) {
+  out_dir <- 'docs';
+  rmarkdown::render(input_file,
+ encoding=encoding,
+ output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+output: html_document
 ---
-
-This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
-
-Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
 
 # Section 3.1 Case Study: Cell Segmentation in High-Content Screening
 
@@ -22,10 +23,9 @@ segTrainClass <- segTrain$Class
 ```
 
 
-### Section 3.2 Data Transformations for Individual Predictors
+# Section 3.2 Data Transformations for Individual Predictors
 
-## The column VarIntenCh3 measures the standard deviation of the intensity
-## of the pixels in the actin filaments
+The column **VarIntenCh3** measures the standard deviation of the intensity of the pixels in the actin filaments
 
 ```{r}
 max(segTrainX$VarIntenCh3)/min(segTrainX$VarIntenCh3)
@@ -37,6 +37,7 @@ library(caret)
 
 ## Use caret's preProcess function to transform for skewness
 segPP <- preProcess(segTrainX, method = "BoxCox")
+segPP
 
 ## Apply the transformations
 segTrainTrans <- predict(segPP, segTrainX)
@@ -67,8 +68,6 @@ histogram(~segTrainTrans$PerimCh1,
 # Section 3.3 Data Transformations for Multiple Predictors
 
 ```{r}
-
-
 ## R's prcomp is used to conduct PCA
 pr <- prcomp(~ AvgIntenCh1 + EntropyIntenCh1, 
              data = segTrainTrans, 
@@ -96,10 +95,10 @@ xyplot(PC2 ~ PC1,
        ylim = extendrange(pr$x),
        type = c("p", "g"),
        aspect = 1)
-
-
+```
 ## Apply PCA to the entire set of predictors.
 
+```{r}
 ## There are a few predictors with only a single value, so we remove these first
 ## (since PCA uses variances, which would be zero)
 
@@ -107,6 +106,7 @@ isZV <- apply(segTrainX, 2, function(x) length(unique(x)) == 1)
 segTrainX <- segTrainX[, !isZV]
 
 segPP <- preProcess(segTrainX, c("BoxCox", "center", "scale"))
+segPP
 segTrainTrans <- predict(segPP, segTrainX)
 
 segPCA <- prcomp(segTrainTrans, center = TRUE, scale. = TRUE)
@@ -122,6 +122,13 @@ splom(as.data.frame(segPCA$x[, 1:3]),
       auto.key = list(columns = 2),
       prepanel.limits = function(x) panelRange)
 
+splom(as.data.frame(segPCA$x[, 1:3]),
+      groups = segTrainClass,
+      type = c("p", "g"))
+
+
+```
+```{r}
 ## Format the rotation values for plotting
 segRot <- as.data.frame(segPCA$rotation[, 1:3])
 
@@ -172,26 +179,25 @@ splom(~segRot[, 1:3],
       auto.key = list(columns = 2))
 ```
 
+# Section 3.5 Removing Variables
 
-histogram(segTrainX$VarIntenCh3,
-          xlab = "Natural Units",
-          type = "count")
+To filter on correlations, we first get the correlation matrix for the predictor set
 
-histogram(~log(segTrainX$VarIntenCh3),
-          xlab = "Log Units",
-          ylab = " ",
-          type = "count")
+```{r}
+segCorr <- cor(segTrainTrans)
 
-segPP$bc$PerimCh1
+library(corrplot)
+corrplot(segCorr, order = "hclust", tl.cex = .35)
+#corrplot(segCorr, tl.cex = .35)
 
-histogram(~segTrainX$PerimCh1,
-          xlab = "Natural Units",
-          type = "count")
+## caret's findCorrelation function is used to identify columns to remove.
+highCorr <- findCorrelation(segCorr, .75)
+```
 
-histogram(~segTrainTrans$PerimCh1,
-          xlab = "Transformed Data",
-          ylab = " ",
-          type = "count")
+
+
+
+
 
 Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
 

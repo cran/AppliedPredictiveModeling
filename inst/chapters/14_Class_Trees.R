@@ -504,14 +504,14 @@ trainPerf <- rbind(rp, j48, part, tb, rf, bst, c5)
 
 library(lattice)
 library(reshape2)
-trainPerf <- melt(trainPerf)
+trainPerf <- plyr::melt(trainPerf)
 trainPerf$metric <- "ROC"
 trainPerf$metric[grepl("Sens", trainPerf$variable)] <- "Sensitivity"
 trainPerf$metric[grepl("Spec", trainPerf$variable)] <- "Specificity"
 trainPerf$model <- "Grouped"
 trainPerf$model[grepl("Independent", trainPerf$variable)] <- "Independent"
 
-trainPerf <- melt(trainPerf)
+trainPerf <- plyr::melt(trainPerf)
 trainPerf$metric <- "ROC"
 trainPerf$metric[grepl("Sens", trainPerf$variable)] <- "Sensitivity"
 trainPerf$metric[grepl("Spec", trainPerf$variable)] <- "Specificity"

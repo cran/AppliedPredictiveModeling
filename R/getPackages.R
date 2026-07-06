@@ -1,5 +1,24 @@
-
-
+#' Install Packages for Each Chapter
+#' 
+#' This function identifies the physical location on the user's computer where
+#' the chapter R scripts are located.
+#' 
+#' Chapter names and packages. about dependencies.
+#' 
+#' @param chapter an integer vector (or character versions of the integer) for
+#' the chapter number. See Details below:
+#' @param ... options to pass to \code{\link[utils]{install.packages}}
+#' @author Max Kuhn
+#' @keywords utilities
+#' @examples
+#' 
+#' \dontrun{
+#' getPackages(2)
+#' getPackages(2:3)
+#' getPackages("4")
+#' }
+#' 
+#' @export getPackages
 getPackages <- function(chapter, ...) {
   if(is.numeric(chapter)) 
     chapter <- paste(chapter)
@@ -41,5 +60,5 @@ getPackages <- function(chapter, ...) {
   pkg <- pkg[pkg != ""]
   pkg <- pkg[order(tolower(pkg))]
   
-  install.packages(pkg, ...)
+  utils::install.packages(pkg, ...)
 }

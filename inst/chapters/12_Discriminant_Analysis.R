@@ -125,7 +125,7 @@ quad2008 <- auc(roc(response = training[-pre2008, "Class"],
                                             type = "response"),
                     levels = rev(levels(training[-pre2008, "Class"]))))
 
-dataGrid <- melt(dataGrid, id.vars = "Day")
+dataGrid <- plyr::melt(dataGrid, id.vars = "Day")
 
 byDay <- training[pre2008, c("Day", "Class")]
 byDay$Binned <- cut(byDay$Day, seq(0, 360, by = 5))

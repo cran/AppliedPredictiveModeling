@@ -2,6 +2,13 @@
 \title{News for Package \pkg{AppliedPredictiveModeling}}
 \newcommand{\cpkg}{\href{https://cran.r-project.org/package=#1}{\pkg{#1}}}
 
+\section{Changes for version 1.2.0}{
+
+\itemize{
+\item \pkg{CORElearn} was removed from CRAN. This package was changes and recommends to install from GitHub. 
+
+}
+}
 
 \section{Changes in version 1.1-6}{
 
